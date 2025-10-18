@@ -1,0 +1,15 @@
+{
+    "appId": "com.glitch.dhwani",
+    "files": ["dist-electron", "dist-react"],
+    "icon" : "./windowsIcon.png",
+    "mac":{
+        "target": "dmg"
+    },
+    "linux":{
+        "target": "Appimage",
+        "category": "Utility"
+    },
+    "win": {
+        "target": ["portable","msi"]
+    }
+}
