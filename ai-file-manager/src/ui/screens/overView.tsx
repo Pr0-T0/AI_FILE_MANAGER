@@ -10,7 +10,7 @@ export default function Overview() {
         animate={{ opacity: 1 }}
         transition={{ duration: 1 }}
       >
-        Dhwani
+        LINC
       </motion.h1>
 
       {/* Subtitle */}
@@ -20,7 +20,7 @@ export default function Overview() {
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5, duration: 0.8 }}
       >
-        Your AI-powered file manager
+        Your AI-powered file manager and sharing system
       </motion.p>
 
       {/* Links like Learn More / Release Notes */}

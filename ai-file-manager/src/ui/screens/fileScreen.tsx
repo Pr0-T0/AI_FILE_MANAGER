@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { File, FileText } from "lucide-react";
+import { File, FileText, Folder } from "lucide-react";
 
 interface FileItem {
   id: number;
   name: string;
-  type: "image" | "pdf" | "excel" | "doc";
+  type: "image" | "pdf" | "excel" | "doc" | "folder";
   src?: string;
   size?: string;
   date?: string;
@@ -12,73 +12,15 @@ interface FileItem {
 }
 
 const mockFiles: FileItem[] = [
-  {
-    id: 1,
-    name: "Beach.png",
-    type: "image",
-    src: "/mock-images/beach.jpg",
-    size: "2.3 MB",
-    date: "2025-10-12",
-    path: "/home/user/Pictures/Trips/Beach.png",
-  },
-  {
-    id: 2,
-    name: "Mountains.png",
-    type: "image",
-    src: "/mock-images/mountains.png",
-    size: "3.1 MB",
-    date: "2025-10-13",
-    path: "/home/user/Pictures/Trips/Mountains.png",
-  },
-  {
-    id: 3,
-    name: "HotelBooking.pdf",
-    type: "pdf",
-    size: "1.2 MB",
-    date: "2025-10-10",
-    path: "/home/user/Documents/Trips/HotelBooking.pdf",
-  },
-  {
-    id: 4,
-    name: "Expenses.xlsx",
-    type: "excel",
-    size: "0.8 MB",
-    date: "2025-10-09",
-    path: "/home/user/Documents/Trips/Expenses.xlsx",
-  },
-  {
-    id: 5,
-    name: "TripNotes.docx",
-    type: "doc",
-    size: "0.5 MB",
-    date: "2025-10-11",
-    path: "/home/user/Documents/Trips/TripNotes.docx",
-  },
-  {
-    id: 6,
-    name: "Sunset.png",
-    type: "image",
-    src: "/mock-images/sunset.jpeg",
-    size: "1.9 MB",
-    date: "2025-10-14",
-    path: "/home/user/Pictures/Trips/Sunset.png",
-  },
-  {
-    id: 7,
-    name: "Itinerary.pdf",
-    type: "pdf",
-    size: "0.7 MB",
-    date: "2025-10-12",
-    path: "/home/user/Documents/Trips/Itinerary.pdf",
-  },
-  {
-    id: 8,
-    name: "PackingList.xlsx",
-    type: "excel",
-    size: "0.9 MB",
-    date: "2025-10-13",
-    path: "/home/user/Documents/Trips/PackingList.xlsx",
-  },
+  { id: 1, name: "Trips", type: "folder", path: "/home/user/Pictures/Trips" },
+  { id: 2, name: "Beach.png", type: "image", src: "/mock-images/beach.jpg", size: "2.3 MB", date: "2025-10-12", path: "/home/user/Pictures/Trips/Beach.png" },
+  { id: 3, name: "Mountains.png", type: "image", src: "/mock-images/mountains.png", size: "3.1 MB", date: "2025-10-13", path: "/home/user/Pictures/Trips/Mountains.png" },
+  { id: 4, name: "HotelBooking.pdf", type: "pdf", size: "1.2 MB", date: "2025-10-10", path: "/home/user/Documents/Trips/HotelBooking.pdf" },
+  { id: 5, name: "Expenses.xlsx", type: "excel", size: "0.8 MB", date: "2025-10-09", path: "/home/user/Documents/Trips/Expenses.xlsx" },
+  { id: 6, name: "TripNotes.docx", type: "doc", size: "0.5 MB", date: "2025-10-11", path: "/home/user/Documents/Trips/TripNotes.docx" },
+  { id: 7, name: "Sunset.png", type: "image", src: "/mock-images/sunset.jpeg", size: "1.9 MB", date: "2025-10-14", path: "/home/user/Pictures/Trips/Sunset.png" },
+  { id: 8, name: "Itinerary.pdf", type: "pdf", size: "0.7 MB", date: "2025-10-12", path: "/home/user/Documents/Trips/Itinerary.pdf" },
+  { id: 9, name: "PackingList.xlsx", type: "excel", size: "0.9 MB", date: "2025-10-13", path: "/home/user/Documents/Trips/PackingList.xlsx" },
 ];
 
 export default function FilesScreen() {
@@ -88,6 +30,7 @@ export default function FilesScreen() {
   const [message, setMessage] = useState("AI is processing your request...");
 
   const getFileIcon = (type: string) => {
+    if (type === "folder") return <Folder className="text-yellow-400" size={36} />;
     if (type === "pdf") return <File className="text-red-500" size={36} />;
     if (type === "excel") return <File className="text-green-500" size={36} />;
     if (type === "doc") return <File className="text-blue-500" size={36} />;
@@ -99,9 +42,9 @@ export default function FilesScreen() {
       setLoading(true);
       setFiles([]);
       setMessage("AI is processing your request...");
-      await new Promise((res) => setTimeout(res, 1500)); // simulate thinking
+      await new Promise((res) => setTimeout(res, 1500));
       setFiles(mockFiles);
-      setMessage("Here are the files related to your last week's trip 📁");
+      setMessage("Here are your recent files and folders 📁");
       setLoading(false);
     };
     fetchFiles();
@@ -110,12 +53,12 @@ export default function FilesScreen() {
   return (
     <div className="flex h-full w-full bg-zinc-950 text-gray-200">
       {/* Left: Files Section */}
-      <div className="flex-1 p-6 overflow-y-auto">
+      <div className="flex-1 p-6 overflow-y-auto custom-scroll">
         <div className="text-gray-300 text-lg font-medium mb-6 animate-fadeIn">
           💬 {message}
         </div>
 
-        {/* Loading indicator */}
+        {/* Loading */}
         {loading && (
           <div className="flex justify-center items-center h-64">
             <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
@@ -129,8 +72,7 @@ export default function FilesScreen() {
               <div
                 key={file.id}
                 onClick={() => setSelectedFile(file)}
-                className={`flex flex-col items-center p-2 rounded-lg cursor-pointer hover:bg-zinc-800 transition 
-                  transform duration-300 ease-out opacity-0 scale-90 animate-appear`}
+                className={`flex flex-col items-center p-2 rounded-lg cursor-pointer hover:bg-zinc-800 transition transform duration-300 ease-out opacity-0 scale-90 animate-appear`}
                 style={{ animationDelay: `${idx * 100}ms`, animationFillMode: "forwards" }}
               >
                 {file.type === "image" && file.src ? (
@@ -181,28 +123,27 @@ export default function FilesScreen() {
               </div>
             </div>
           ) : (
-            <div className="text-gray-500">Select a file to preview its details.</div>
+            <div className="text-gray-500">Select a file or folder to preview its details.</div>
           )}
         </div>
       </div>
 
-      {/* Animations */}
+      {/* Animations & Scrollbar Styling */}
       <style>
         {`
           @keyframes appear {
             from { opacity: 0; transform: scale(0.9); }
             to { opacity: 1; transform: scale(1); }
           }
-          .animate-appear {
-            animation: appear 300ms forwards;
-          }
-          @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-4px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-          .animate-fadeIn {
-            animation: fadeIn 600ms ease-in-out;
-          }
+          .animate-appear { animation: appear 300ms forwards; }
+          @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+          .animate-fadeIn { animation: fadeIn 600ms ease-in-out; }
+
+          /* Custom dark scrollbar */
+          .custom-scroll::-webkit-scrollbar { width: 10px; }
+          .custom-scroll::-webkit-scrollbar-track { background: #1f1f1f; }
+          .custom-scroll::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 6px; }
+          .custom-scroll::-webkit-scrollbar-thumb:hover { background: #2563eb; }
         `}
       </style>
     </div>

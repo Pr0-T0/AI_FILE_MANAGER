@@ -6,7 +6,7 @@ import FloatingTextBar from "./componants/floatingTextBar";
 
 function App() {
   // Possible views: 'files', 'peers', 'settings'
-  const [currentView, setCurrentView] = useState<"overview"|"files" | "peers" | "settings">("files");
+  const [currentView, setCurrentView] = useState<"overview"|"files" | "peers" | "settings">("overview");
 
   // Function to update current view based on AI instructions
   const handleAIInstruction = (instruction: string) => {
