@@ -1,6 +1,7 @@
-import { app, BrowserWindow, Menu } from "electron";
+import { app, BrowserWindow} from "electron";
 import { join } from "path";
 import { isDev } from "./util.js";
+import { getPreloadPath } from "./pathResolver.js";
 
 
 
@@ -9,12 +10,11 @@ app.on("ready", () => {
     width: 800,
     height: 600,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
+      preload: getPreloadPath(),
     },
   });
 
-  Menu.setApplicationMenu(null);
+  // Menu.setApplicationMenu(null);
 
   if (isDev()) {
     mainWindow.loadURL("http://localhost:5432");

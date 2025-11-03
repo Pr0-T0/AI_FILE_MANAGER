@@ -1,6 +1,7 @@
 {
     "appId": "com.glitch.dhwani",
     "files": ["dist-electron", "dist-react"],
+    "extraResources" : ["dist-electron/preload.cjs"],
     "icon" : "./windowsIcon.png",
     "mac":{
         "target": "dmg"
