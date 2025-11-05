@@ -2,6 +2,7 @@ import { app, BrowserWindow} from "electron";
 import { join } from "path";
 import { isDev } from "./util.js";
 import { getPreloadPath } from "./pathResolver.js";
+import "./db.cjs"; // initialize database on startup
 
 
 

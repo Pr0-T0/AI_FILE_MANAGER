@@ -1,5 +1,5 @@
 {
-    "appId": "com.glitch.dhwani",
+    "appId": "com.glitch.inc",
     "files": ["dist-electron", "dist-react"],
     "extraResources" : ["dist-electron/preload.cjs"],
     "icon" : "./windowsIcon.png",
