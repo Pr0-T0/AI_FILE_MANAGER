@@ -1,3 +1,7 @@
+//hashing takes a lot of time
+//only implement hashing  when creating the crawler
+//hashing is used to check for changes in files
+
 import fs from "fs";
 import path from "path";
 import { upsertMany } from "./db.js";
