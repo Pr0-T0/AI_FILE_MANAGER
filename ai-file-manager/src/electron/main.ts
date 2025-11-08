@@ -3,9 +3,10 @@ import { app, BrowserWindow } from "electron";
 import { join } from "path";
 import { isDev } from "./util.js";
 import { getPreloadPath } from "./pathResolver.js";
-import { initDB } from "./db/db.js"; // ✅ import init function, not auto-run DB
+import { initDB } from "./db/db.js"; //  import init function, not auto-run DB
 import { getRootScanPaths } from "./db/getRoots.js";
 import { scanDirectory } from "./db/scanner.js";
+import { setupGeminiIPC } from "./api/ai.js";
 
 app.whenReady().then(async () => {
   // Initialize the database safely after Electron is ready
@@ -44,6 +45,10 @@ app.whenReady().then(async () => {
   if (isDev()) mainWindow.webContents.openDevTools();
 
   console.log("Main window loaded!");
+
+  setupGeminiIPC(mainWindow);
+
+  console.log("Main window loaded and Gemini IPC ready.");
 });
 
 //Gracefully close DB before quitting

@@ -8,6 +8,9 @@ function App() {
   // Possible views: 'files', 'peers', 'settings'
   const [currentView, setCurrentView] = useState<"overview"|"files" | "peers" | "settings">("overview");
 
+  // // @ts-ignore
+  // window.electron.getStaticData();
+
   // Function to update current view based on AI instructions
   const handleAIInstruction = (instruction: string) => {
     switch (instruction) {
