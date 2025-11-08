@@ -86,7 +86,7 @@ export function initDB() {
 }
 
 // ---------------- Ensure DB is ready ----------------
-function ensureDB(): Database.Database {
+export function ensureDB(): Database.Database {
   if (!db) initDB();
   return db!;
 }

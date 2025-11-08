@@ -1,12 +1,12 @@
 // main.ts
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, ipcMain } from "electron";
 import { join } from "path";
 import { isDev } from "./util.js";
 import { getPreloadPath } from "./pathResolver.js";
 import { initDB } from "./db/db.js"; //  import init function, not auto-run DB
 import { getRootScanPaths } from "./db/getRoots.js";
 import { scanDirectory } from "./db/scanner.js";
-import { setupGeminiIPC } from "./api/ai.js";
+import { executeSQL } from "./db/exeSQL.js";
 
 app.whenReady().then(async () => {
   // Initialize the database safely after Electron is ready
@@ -46,9 +46,17 @@ app.whenReady().then(async () => {
 
   console.log("Main window loaded!");
 
-  setupGeminiIPC(mainWindow);
 
-  console.log("Main window loaded and Gemini IPC ready.");
+  ipcMain.handle("execute-sql", async (_event, { sql, params }) => {
+    try {
+      const result = executeSQL(sql, params);
+      return result; // already structured as { success, rows?, info?, error? }
+    } catch (error: any) {
+      console.error(" IPC SQL Error:", error.message);
+      return { success: false, error: error.message };
+    }
+  });
+
 });
 
 //Gracefully close DB before quitting

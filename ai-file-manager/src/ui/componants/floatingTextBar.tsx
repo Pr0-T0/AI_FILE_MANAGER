@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Send } from "lucide-react";
 
 interface FloatingTextBarProps {
-  onAICommand: (response: string) => void;
+  onAICommand: (response: string | any[]) => void;
 }
 
 export default function FloatingTextBar({ onAICommand }: FloatingTextBarProps) {
@@ -11,53 +11,42 @@ export default function FloatingTextBar({ onAICommand }: FloatingTextBarProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSend = async () => {
-    const prompt = text.trim();
-    if (!prompt || isLoading) return;
+    const sql = text.trim();
+    if (!sql || isLoading) return;
 
     setIsLoading(true);
     setText("");
-    console.log("Sending to Gemini:", prompt);
+    console.log("Executing SQL:", sql);
 
     try {
+      // Call the IPC-exposed function from preload.ts
       // @ts-ignore
-      const result = await window.electron.sendQuery(prompt);
-      console.log("Gemini Response:", result);
-      onAICommand(result);
+      const result = await window.electron.executeSQL(sql);
+
+      console.log("SQL Result:", result);
+
+      if (result.success) {
+        if (result.rows?.length) {
+          onAICommand(result.rows);
+        } else if (result.info) {
+          onAICommand(
+            `Query executed successfully. Rows affected: ${result.info.changes || 0}`
+          );
+        } else {
+          onAICommand("Query executed successfully.");
+        }
+      } else {
+        onAICommand(`SQL Error: ${result.error}`);
+      }
     } catch (err: any) {
-      console.error("Error from Gemini:", err);
-      onAICommand(`Error: ${err.message}`);
+      console.error("IPC error:", err);
+      onAICommand(`IPC Error: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Listen for async Gemini events (optional)
-  useEffect(() => {
-    const handleResponse = (text: string) => {
-      console.log("Gemini async response:", text);
-      onAICommand(text);
-    };
-
-    const handleError = (error: string) => {
-      console.error("Gemini async error:", error);
-      onAICommand(`Error: ${error}`);
-    };
-
-    // @ts-ignore
-    window.electron.onGeminiResponse(handleResponse);
-    // @ts-ignore
-    window.electron.onGeminiError(handleError);
-
-    return () => {
-      // Cleanup listeners when component unmounts
-      // @ts-ignore
-      window.electron.onGeminiResponse(() => {});
-      // @ts-ignore
-      window.electron.onGeminiError(() => {});
-    };
-  }, [onAICommand]);
-
-  // Auto-resize textarea
+  // Auto-resize textarea based on content
   useEffect(() => {
     const textarea = textareaRef.current;
     if (textarea) {
@@ -74,7 +63,7 @@ export default function FloatingTextBar({ onAICommand }: FloatingTextBarProps) {
         ref={textareaRef}
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder={isLoading ? "Thinking..." : "Ask LINC something..."}
+        placeholder={isLoading ? "Executing..." : "Enter SQL query..."}
         className="flex-1 resize-none bg-transparent text-gray-200 px-2 py-1 rounded-md outline-none overflow-y-auto text-sm"
         disabled={isLoading}
       />
