@@ -3,17 +3,19 @@ import { app, BrowserWindow, ipcMain } from "electron";
 import { join } from "path";
 import { isDev } from "./util.js";
 import { getPreloadPath } from "./pathResolver.js";
-import { initDB } from "./db/db.js"; //  import init function, not auto-run DB
+import { initDB } from "./db/db.js";
 import { getRootScanPaths } from "./db/getRoots.js";
 import { scanDirectory } from "./db/scanner.js";
-import { executeSQL } from "./db/exeSQL.js";
+import { createSQLChatSession } from "./api/sqlGen.js";
+
+let chat: Awaited<ReturnType<typeof createSQLChatSession>> | null = null;
 
 app.whenReady().then(async () => {
-  // Initialize the database safely after Electron is ready
+  // Initialize database
   initDB();
   console.log("[DB] Ready and connected.");
 
-  // Start file indexing after DB is ready
+  // Start file indexing
   const roots = getRootScanPaths();
   console.log("Starting file indexing:", roots);
 
@@ -26,7 +28,7 @@ app.whenReady().then(async () => {
     }
   }
 
-  // Create main window after indexing begins
+  // Create main window
   const mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
@@ -41,25 +43,34 @@ app.whenReady().then(async () => {
     await mainWindow.loadFile(join(app.getAppPath(), "/dist-react/index.html"));
   }
 
-  // Optional: open DevTools in development : this opens the console auitomatically
   if (isDev()) mainWindow.webContents.openDevTools();
-
   console.log("Main window loaded!");
 
+  // Initialize Gemini SQL chat session
+  chat = await createSQLChatSession();
+  console.log("[AI] Gemini SQL chat session ready.");
 
-  ipcMain.handle("execute-sql", async (_event, { sql, params }) => {
+  // IPC: AI SQL chat handler
+  ipcMain.handle("ai:chat-sql", async (_event, message: string) => {
+    if (!chat) {
+      chat = await createSQLChatSession();
+    }
+
+    console.log("[AI] Received query:", message);
+
     try {
-      const result = executeSQL(sql, params);
-      return result; // already structured as { success, rows?, info?, error? }
-    } catch (error: any) {
-      console.error(" IPC SQL Error:", error.message);
-      return { success: false, error: error.message };
+      const response = await chat.sendMessage({ message });
+      const sql = response.text?.trim() || "";
+      console.log("[AI] Generated SQL:\n", sql);
+      return { success: true, sql };
+    } catch (err: any) {
+      console.error("[AI] Gemini error:", err.message);
+      return { success: false, error: err.message };
     }
   });
-
 });
 
-//Gracefully close DB before quitting
+// Gracefully close DB before quitting
 app.on("before-quit", () => {
   try {
     const { closeDB } = require("./db/db.js");

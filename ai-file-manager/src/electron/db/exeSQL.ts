@@ -38,11 +38,11 @@ export function executeSQL(sql: string, params: any[] = []): any {
       result = true;
     }
 
-    return result;
+    return result; // sql query responce -> AI model for resoning
   } catch (err: any) {
     console.error("[SQL ERROR]", err.message);
     console.error("Query:", sql);
-    if (params.length) console.error("📦 Params:", params);
+    if (params.length) console.error("Params:", params);
     return null;
   }
 }

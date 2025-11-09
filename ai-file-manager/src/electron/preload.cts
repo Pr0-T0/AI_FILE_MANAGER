@@ -1,12 +1,18 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 contextBridge.exposeInMainWorld("electron", {
-  // existing test function
+  // Example static test function
   getStaticData: () => console.log("static"),
 
-  //  SQL executor bridge
-  executeSQL: async (sql: string, params: any[] = []) => {
-    // Send query to the main process and await result
-    return await ipcRenderer.invoke("execute-sql", { sql, params });
+  // Bridge: Ask Gemini (AI) to generate SQL from a natural-language query
+  generateSQL: async (userQuery: string) => {
+    try {
+      // Send the user query to the main process
+      const result = await ipcRenderer.invoke("ai:chat-sql", userQuery);
+      return result; // { success: boolean, sql?: string, error?: string }
+    } catch (error: any) {
+      console.error("[Preload] generateSQL error:", error.message);
+      return { success: false, error: error.message };
+    }
   },
 });

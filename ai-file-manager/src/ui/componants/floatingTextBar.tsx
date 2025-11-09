@@ -11,32 +11,26 @@ export default function FloatingTextBar({ onAICommand }: FloatingTextBarProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSend = async () => {
-    const sql = text.trim();
-    if (!sql || isLoading) return;
+    const userQuery = text.trim();
+    if (!userQuery || isLoading) return;
 
     setIsLoading(true);
     setText("");
-    console.log("Executing SQL:", sql);
+    console.log("Sending natural-language query:", userQuery);
 
     try {
       // Call the IPC-exposed function from preload.ts
       // @ts-ignore
-      const result = await window.electron.executeSQL(sql);
+      const result = await window.electron.generateSQL(userQuery);
 
-      console.log("SQL Result:", result);
+      console.log("Gemini result:", result);
 
-      if (result.success) {
-        if (result.rows?.length) {
-          onAICommand(result.rows);
-        } else if (result.info) {
-          onAICommand(
-            `Query executed successfully. Rows affected: ${result.info.changes || 0}`
-          );
-        } else {
-          onAICommand("Query executed successfully.");
-        }
+      if (result.success && result.sql) {
+        onAICommand(`Generated SQL:\n${result.sql}`);
+      } else if (result.error) {
+        onAICommand(`AI Error: ${result.error}`);
       } else {
-        onAICommand(`SQL Error: ${result.error}`);
+        onAICommand("No response from AI.");
       }
     } catch (err: any) {
       console.error("IPC error:", err);
@@ -63,7 +57,11 @@ export default function FloatingTextBar({ onAICommand }: FloatingTextBarProps) {
         ref={textareaRef}
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder={isLoading ? "Executing..." : "Enter SQL query..."}
+        placeholder={
+          isLoading
+            ? "Generating SQL..."
+            : "Ask AI (e.g., show me pdf files created this month)..."
+        }
         className="flex-1 resize-none bg-transparent text-gray-200 px-2 py-1 rounded-md outline-none overflow-y-auto text-sm"
         disabled={isLoading}
       />
