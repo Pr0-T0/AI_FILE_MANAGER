@@ -16,16 +16,20 @@ export default function FloatingTextBar({ onAICommand }: FloatingTextBarProps) {
 
     setIsLoading(true);
     setText("");
-    console.log("Sending natural-language query:", userQuery);
+    console.log("[UI] Sending natural-language query:", userQuery);
 
     try {
-      // Call the IPC-exposed function from preload.ts
+      // Call the IPC-exposed compositional AI chain (through preload)
       // @ts-ignore
       const result = await window.electron.generateSQL(userQuery);
 
-      console.log("Gemini result:", result);
+      console.log("[UI] AI Result:", result);
 
-      if (result.success && result.sql) {
+      if (result.success && result.result) {
+        // Display final AI text result
+        onAICommand(result.result);
+      } else if (result.success && result.sql) {
+        // Legacy fallback if backend sends SQL
         onAICommand(`Generated SQL:\n${result.sql}`);
       } else if (result.error) {
         onAICommand(`AI Error: ${result.error}`);
@@ -33,7 +37,7 @@ export default function FloatingTextBar({ onAICommand }: FloatingTextBarProps) {
         onAICommand("No response from AI.");
       }
     } catch (err: any) {
-      console.error("IPC error:", err);
+      console.error("[UI] IPC error:", err);
       onAICommand(`IPC Error: ${err.message}`);
     } finally {
       setIsLoading(false);
@@ -59,7 +63,7 @@ export default function FloatingTextBar({ onAICommand }: FloatingTextBarProps) {
         onChange={(e) => setText(e.target.value)}
         placeholder={
           isLoading
-            ? "Generating SQL..."
+            ? "AI reasoning in progress..."
             : "Ask AI (e.g., show me pdf files created this month)..."
         }
         className="flex-1 resize-none bg-transparent text-gray-200 px-2 py-1 rounded-md outline-none overflow-y-auto text-sm"
@@ -71,6 +75,7 @@ export default function FloatingTextBar({ onAICommand }: FloatingTextBarProps) {
           isLoading ? "bg-gray-600" : "bg-blue-600 hover:bg-blue-500"
         } text-white px-3 py-1.5 rounded-lg flex items-center justify-center h-10 transition`}
         disabled={isLoading}
+        title="Send query to AI"
       >
         <Send size={16} />
       </button>

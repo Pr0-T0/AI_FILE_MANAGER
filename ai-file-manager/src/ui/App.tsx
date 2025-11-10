@@ -3,36 +3,21 @@ import Sidebar from "./componants/sideBar";
 import MainContent from "./componants/mainContent";
 import FloatingTextBar from "./componants/floatingTextBar";
 
-
 function App() {
-  // Possible views: 'files', 'peers', 'settings'
-  const [currentView, setCurrentView] = useState<"overview"|"files" | "peers" | "settings">("overview");
+  // Possible views: 'overview', 'files', 'peers', 'settings'
+  const [currentView, setCurrentView] = useState<"overview" | "files" | "peers" | "settings">("overview");
 
-  // // @ts-ignore
-  // window.electron.getStaticData();
-
-  // Function to update current view based on AI instructions
-  const handleAIInstruction = (instruction: string) => {
-    switch (instruction) {
-      case "showFiles":
-        setCurrentView("files");
-        break;
-      case "showPeers":
-        setCurrentView("peers");
-        break;
-      case "openSettings":
-        setCurrentView("settings");
-        break;
-      default:
-        setCurrentView("files");
-    }
+  // Handle only display output from AI (no navigation)
+  const handleAIOutput = (response: string | any[]) => {
+    console.log("AI output:", response);
+    // You can later display this response in a message box or console area if needed.
   };
 
   return (
     <div className="h-screen w-screen flex bg-zinc-950 text-gray-200 overflow-hidden">
       <Sidebar setCurrentView={setCurrentView} />
       <MainContent currentView={currentView} />
-      <FloatingTextBar onAICommand={handleAIInstruction} />
+      <FloatingTextBar onAICommand={handleAIOutput} />
     </div>
   );
 }
