@@ -3,7 +3,7 @@ import "dotenv/config";
 
 export async function createSQLChatSession() {
   const ai = new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY,
+    apiKey: process.env.GEMINI_API_KEY_2,
   });
 
   const chat = ai.chats.create({
@@ -20,7 +20,7 @@ Your job:
 - Convert user requests written in natural language into valid SQL queries.
 - The database schema is:
 
-Table: files
+Table: files_index
 Columns:
 - path TEXT
 - name TEXT
@@ -37,6 +37,7 @@ Output rules:
 3. The response must be a single valid SQL command suitable for execution in SQLite.
 4. Never include words like "Here is your SQL" or "SELECT statement".
 5. Keep context across turns and modify only if the user reports an error or requests a change.
+6. The extension column always starts with a dot like .pdf
 
 Example:
 User: show me all pdf files from last week
