@@ -1,14 +1,19 @@
-import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { tool } from "@langchain/core/tools";
+import * as z from "zod";
+
 import { executeSQL } from "../db/exeSQL.js";
 import { displayResult } from "../test/displaySQL.js";
 import "dotenv/config";
 import { createSQLChatSession } from "./sqlGen.js";
 
-/* ===================== AI CLIENT ===================== */
 
-const ai = new GoogleGenAI({
+const model = new ChatGoogleGenerativeAI({
+  model : "gemini-2.5-flash",
+  temperature: 0,
   apiKey: process.env.GEMINI_API_KEY_1,
 });
+
 
 /* ===================== TOOL IMPLEMENTATIONS ===================== */
 
@@ -16,27 +21,14 @@ const ai = new GoogleGenAI({
 
 let sqlChat: Awaited<ReturnType<typeof createSQLChatSession>> | null = null;
 
-async function sqlgen({ query }: { query: string }) {
-  console.log(`Tool Call → sqlgen("${query}")`);
-
-  if (!sqlChat) {
-    sqlChat = await createSQLChatSession();
-    console.log("[sqlgen] SQL chat session created");
-  }
-
-  const response = await sqlChat.sendMessage({ message: query });
-  const sql = response.text?.trim() ?? "";
-
-  return { sql };
-}
 
 // -------- exeSQL --------
 
-function exeSQL({ sql }: { sql: string }) {
-  console.log(`Tool Call → exeSQL`);
-  const result = executeSQL(sql);
-  return { result };
-}
+// function exeSQL({ sql }: { sql: string }) {
+//   console.log(`Tool Call → exeSQL`);
+//   const result = executeSQL(sql);
+//   return { result };
+// }
 
 // -------- displaySQL --------
 
@@ -46,133 +38,176 @@ function displaySQL({ result }: { result: any }) {
   return { status: "shown" };
 }
 
-const toolFunctions = { sqlgen, exeSQL, displaySQL } as const;
+// const toolFunctions = { sqlgen, exeSQL, displaySQL } as const;
 
-/* ===================== TOOL DECLARATIONS ===================== */
+//tools defenitions for graph
 
-const functionDeclarations: FunctionDeclaration[] = [
-  {
-    name: "sqlgen",
-    description:
-      "Generate an SQL query from a natural language file-system request.",
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        query: { type: Type.STRING },
-      },
-      required: ["query"],
-    },
-  },
-  {
-    name: "exeSQL",
-    description:
-      "Execute an SQL query on the local file metadata database.",
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        sql: { type: Type.STRING },
-      },
-      required: ["sql"],
-    },
-  },
-  {
-    name: "displaySQL",
-    description:
-      "Display SQL query results to the user.",
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        result: { type: Type.OBJECT },
-      },
-      required: ["result"],
-    },
-  },
-];
+const sqlgen = tool(
+  async ({ query }) => {
+    console.log("sqlGen called");
 
-/* ===================== COMPOSITIONAL CONTROLLER ===================== */
-
-type ChatMessage = {
-  role: "user" | "model";
-  parts: any[];
-};
-
-export async function runCompositionalChain(userQuery: string) {
-  console.log(`\nUser: ${userQuery}`);
-
-  const contents: ChatMessage[] = [
-    {
-      role: "user",
-      parts: [
-        {
-          text: `
-You are LINC, an AI file manager.
-
-You have tools that can:
-• generate SQL from natural language
-• execute SQL queries
-• display results
-
-Choose tools only when needed.
-Decide the order yourself.
-Stop when no more tool calls are necessary.
-          `.trim(),
-        },
-      ],
-    },
-    {
-      role: "user",
-      parts: [{ text: userQuery }],
-    },
-  ];
-
-  while (true) {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents,
-      config: {
-        tools: [{ functionDeclarations }],
-      },
-    });
-
-    const candidate = response.candidates?.[0];
-    const part = candidate?.content?.parts?.[0];
-
-    /* ✅ MODEL DECIDES TO FINISH */
-    if (part?.text) {
-      console.log("\nFinal Response:\n", part.text);
-      return part.text;
+    //create chat if not exist
+    if (!sqlChat) {
+      sqlChat = await createSQLChatSession();
+      console.log("Initialized chat session");
     }
 
-    /* ✅ MODEL DECIDES NEXT TOOL */
-    if (part?.functionCall) {
-      const { name, args } = part.functionCall;
+    const response = await sqlChat.sendMessage({ message: query});
+    const sql = response.text?.trim() ?? "";
 
-      console.log(`\nModel chose tool: ${name}`);
-      const tool = toolFunctions[name as keyof typeof toolFunctions];
-
-      const toolResult = await tool(args as any);
-
-      contents.push({
-        role: "model",
-        parts: [{ functionCall: part.functionCall }],
-      });
-
-      contents.push({
-        role: "user",
-        parts: [
-          {
-            functionResponse: {
-              name,
-              response: toolResult,
-            },
-          },
-        ],
-      });
-
-      continue;
-    }
-
-    console.warn("No text or function call returned");
-    return "No response from model.";
+    return { sql };
+  },
+  {
+    name : "sqlgen",
+    description : "Generate an SQL query from natural language question",
+    schema : z.object({
+      query:z.string().describe("Natural language query to convert into SQL"),
+    }),
   }
+);
+
+const exesql = tool(
+  async ({ sql }) => {
+    console.log("exesql called");
+
+    const result = await executeSQL(sql);
+
+    return { result };
+  },
+  {
+    name : "exesql",
+    description : "Execute a SQL query against the database and return the result",
+    schema : z.object({
+      sql: z.string().describe("SQL query to be executed"),
+    }),
+  }
+);
+
+const displasql = tool(
+  ({ result }) => {
+    console.log("displaySQL called");
+    const displayStatus = displayResult(result);
+    if(displayStatus === true)
+      return {status : "shown"}
+    else {
+      return {
+        status: "error",
+        error: displayStatus,
+      };
+    }
+  },
+  {
+    name : "displaysql",
+    description : "display SQL query execution result to UI",
+    schema : z.object({
+      result : z.any().describe("Result returned from executing the sql query"),
+    }),
+  }
+);
+
+
+//augment with tools
+
+const toolsByName = {
+  [sqlgen.name] : sqlgen,
+  [exesql.name] : exesql,
+  [displasql.name] : displasql,
+};
+const tools = Object.values(toolsByName);
+const modelWithTools = model.bindTools(tools);
+
+//define states
+import { StateGraph, START, END, MessagesZodMeta } from "@langchain/langgraph";
+import { registry } from "@langchain/langgraph/zod";
+import { type BaseMessage } from "@langchain/core/messages";
+
+const MessagesState = z.object({
+  messages: z
+      .array(z.custom<BaseMessage>())
+      .register(registry, MessagesZodMeta),
+    llmCalls: z.number().optional(),
+});
+
+//model node defenition
+import { SystemMessage } from "@langchain/core/messages";
+
+async function llmCall(state:z.infer<typeof MessagesState>) {
+  return {
+    messages:  await modelWithTools.invoke([
+      new SystemMessage(
+        "You are a helpfull file manager assistant named LINC tasked with performing file operations.all file metadat information is stored in a sql db which is nt visible or known to the user"
+
+      ),
+      ...state.messages,
+    ]),
+    llmCalls: (state.llmCalls ?? 0) + 1,
+  };
 }
+
+//tool node def
+
+import { isAIMessage, ToolMessage } from "@langchain/core/messages";
+
+async function toolNode(state:z.infer<typeof MessagesState>) {
+  const LastMessage = state.messages.at(-1);
+
+  if (LastMessage == null || !isAIMessage(LastMessage)){
+    return { messages: []}
+  }
+
+  const result: ToolMessage[] = [];
+  for (const toolCall of LastMessage.tool_calls ?? []){
+    const tool = toolsByName[toolCall.name];
+    const observation = await tool.invoke(toolCall);
+    result.push(observation);
+  }
+
+  return { messages: result};
+}
+
+//end or continue
+async function shouldContinue(state: z.infer<typeof MessagesState>) {
+  const lastMessage = state.messages.at(-1);
+  if (lastMessage == null || !isAIMessage(lastMessage)) return END;
+
+  // If the LLM makes a tool call, then perform an action
+  if (lastMessage.tool_calls?.length) {
+    return "toolNode";
+  }
+
+  // Otherwise, we stop (reply to the user)
+  return END;
+}
+
+// Step 6: Build and compile the agent
+
+const agent = new StateGraph(MessagesState)
+  .addNode("llmCall", llmCall)
+  .addNode("toolNode", toolNode)
+  .addEdge(START, "llmCall")
+  .addConditionalEdges("llmCall", shouldContinue, ["toolNode", END])
+  .addEdge("toolNode", "llmCall")
+  .compile();
+
+// Invoke
+import { HumanMessage } from "@langchain/core/messages";
+// const result = await agent.invoke({
+//   messages: [new HumanMessage("who are you")],
+// });
+
+export async function runAgent(userInput: string) {
+  const result = await agent.invoke({
+    messages: [new HumanMessage(userInput)],
+  });
+
+  for (const message of result.messages) {
+    console.log(`[${message.getType()}]: ${message.text}`);
+  }
+
+  return result; // full result including messages + tool traces
+}
+
+
+// for (const message of result.messages) {
+//   console.log(`[${message.getType()}]: ${message.text}`);
+// }

@@ -6,7 +6,7 @@ import { getPreloadPath } from "./pathResolver.js";
 import { initDB } from "./db/db.js";
 import { getRootScanPaths } from "./db/getRoots.js";
 import { scanDirectory } from "./db/scanner.js";
-import { runCompositionalChain } from "./api/functionCall.js"; // ✅ new compositional AI module
+import { runAgent } from "./api/functionCall.js";
 
 // -------------------- APP SETUP --------------------
 
@@ -57,7 +57,10 @@ app.whenReady().then(async () => {
     console.log("[AI] Received query:", userQuery);
 
     try {
-      const finalResponse = await runCompositionalChain(userQuery);
+      const finalResponse = await runAgent(userQuery);
+
+      const last = finalResponse.messages.at(-1);
+      const finalText = last?.content ?? last?.text ?? "";
 
       return {
         success: true,

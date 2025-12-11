@@ -1,6 +1,6 @@
-//hashing takes a lot of time
-//only implement hashing  when creating the crawler
-//hashing is used to check for changes in files
+// hashing takes a lot of time
+// only implement hashing when creating the crawler
+// hashing is used to check for changes in files
 
 import fs from "fs";
 import path from "path";
@@ -9,7 +9,7 @@ import { upsertMany } from "./db.js";
 interface FileMeta {
   path: string;
   name: string;
-  parent: string;
+  parent: string;           // now stores ONLY folder name
   type: "file" | "directory";
   extension?: string;
   size?: number;
@@ -44,7 +44,7 @@ export async function scanDirectory(dir: string, depth = 0): Promise<void> {
       batch.push({
         path: dir,
         name: path.basename(dir),
-        parent: path.dirname(dir),
+        parent: path.basename(path.dirname(dir)),     // ← modified
         type: "directory",
         size: 0,
         created_at: dirStat.birthtimeMs,
@@ -72,7 +72,7 @@ export async function scanDirectory(dir: string, depth = 0): Promise<void> {
         batch.push({
           path: full,
           name: entry.name,
-          parent: dir,
+          parent: path.basename(dir),       // ← modified
           type: "directory",
           size: 0,
           created_at: stat.birthtimeMs,
@@ -92,7 +92,7 @@ export async function scanDirectory(dir: string, depth = 0): Promise<void> {
         batch.push({
           path: full,
           name: entry.name,
-          parent: dir,
+          parent: path.basename(dir),       // ← modified
           type: "file",
           extension: path.extname(entry.name),
           size: stat.size,
