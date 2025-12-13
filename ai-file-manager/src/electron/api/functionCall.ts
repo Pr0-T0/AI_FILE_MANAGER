@@ -32,17 +32,17 @@ let sqlChat: Awaited<ReturnType<typeof createSQLChatSession>> | null = null;
 
 // -------- displaySQL --------
 
-function displaySQL({ result }: { result: any }) {
-  console.log(`Tool Call → displaySQL`);
-  displayResult(result);
-  return { status: "shown" };
-}
+// function displaySQL({ result }: { result: any }) {
+//   console.log(`Tool Call → displaySQL`);
+//   displayResult(result);
+//   return { status: "shown" };
+// }
 
 // const toolFunctions = { sqlgen, exeSQL, displaySQL } as const;
 
 //tools defenitions for graph
 
-const sqlgen = tool(
+const sqlgen = tool(                  //combine sqlgen and exesql (now only one call insted of two)
   async ({ query }) => {
     console.log("sqlGen called");
 
@@ -98,7 +98,7 @@ const displasql = tool(
   },
   {
     name : "displaysql",
-    description : "display SQL query execution result to UI",
+    description : "Display tabular file listings in the UI. Do not use for counts or aggregate values",
     schema : z.object({
       result : z.any().describe("Result returned from executing the sql query"),
     }),
@@ -135,7 +135,7 @@ async function llmCall(state:z.infer<typeof MessagesState>) {
   return {
     messages:  await modelWithTools.invoke([
       new SystemMessage(
-        "You are a helpfull file manager assistant named LINC tasked with performing file operations.all file metadat information is stored in a sql db which is nt visible or known to the user"
+        "You are a helpfull file manager assistant named LINC tasked with performing file operations.all file metadat information is stored in a sql db which is nt visible or known to the user Never call displaySQL for aggregate or scalar results (COUNT, SUM, etc).Only call it when the user expects a list or table."
 
       ),
       ...state.messages,

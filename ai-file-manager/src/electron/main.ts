@@ -39,7 +39,7 @@ app.whenReady().then(async () => {
 
   if (isDev()) {
     await mainWindow.loadURL("http://localhost:5432");
-    mainWindow.webContents.openDevTools();
+    // mainWindow.webContents.openDevTools();
   } else {
     await mainWindow.loadFile(join(app.getAppPath(), "/dist-react/index.html"));
   }
