@@ -42,46 +42,76 @@ let sqlChat: Awaited<ReturnType<typeof createSQLChatSession>> | null = null;
 
 //tools defenitions for graph
 
-const sqlgen = tool(                  //combine sqlgen and exesql (now only one call insted of two)
-  async ({ query }) => {
-    console.log("sqlGen called");
+// const sqlgen = tool(                  //combine sqlgen and exesql (now only one call insted of two)
+//   async ({ query }) => {
+//     console.log("sqlGen called");
 
-    //create chat if not exist
+//     //create chat if not exist
+//     if (!sqlChat) {
+//       sqlChat = await createSQLChatSession();
+//       console.log("Initialized chat session");
+//     }
+
+//     const response = await sqlChat.sendMessage({ message: query});
+//     const sql = response.text?.trim() ?? "";
+
+//     return { sql };
+//   },
+//   {
+//     name : "sqlgen",
+//     description : "Generate an SQL query from natural language question",
+//     schema : z.object({
+//       query:z.string().describe("Natural language query to convert into SQL"),
+//     }),
+//   }
+// );
+
+// const exesql = tool(
+//   async ({ sql }) => {
+//     console.log("exesql called");
+
+//     const result = await executeSQL(sql);
+
+//     return { result };
+//   },
+//   {
+//     name : "exesql",
+//     description : "Execute a SQL query against the database and return the result",
+//     schema : z.object({
+//       sql: z.string().describe("SQL query to be executed"),
+//     }),
+//   }
+// );
+const sqlgen_exesql = tool(
+  async ({ query }) => {
+    console.log("sqlgen_exesql called");
+
+    // create chat if not exist
     if (!sqlChat) {
       sqlChat = await createSQLChatSession();
       console.log("Initialized chat session");
     }
 
-    const response = await sqlChat.sendMessage({ message: query});
+    // 1. generate SQL
+    const response = await sqlChat.sendMessage({ message: query });
     const sql = response.text?.trim() ?? "";
 
-    return { sql };
-  },
-  {
-    name : "sqlgen",
-    description : "Generate an SQL query from natural language question",
-    schema : z.object({
-      query:z.string().describe("Natural language query to convert into SQL"),
-    }),
-  }
-);
+    console.log("Generated SQL:", sql);
 
-const exesql = tool(
-  async ({ sql }) => {
-    console.log("exesql called");
-
+    // 2. execute SQL
     const result = await executeSQL(sql);
 
-    return { result };
+    return { sql, result };
   },
   {
-    name : "exesql",
-    description : "Execute a SQL query against the database and return the result",
-    schema : z.object({
-      sql: z.string().describe("SQL query to be executed"),
+    name: "sqlgen_exesql",
+    description: "Generate SQL from natural language and execute it in one step",
+    schema: z.object({
+      query: z.string().describe("Natural language query to convert into SQL and execute"),
     }),
   }
 );
+
 
 const displasql = tool(
   ({ result }) => {
@@ -109,8 +139,7 @@ const displasql = tool(
 //augment with tools
 
 const toolsByName = {
-  [sqlgen.name] : sqlgen,
-  [exesql.name] : exesql,
+  [sqlgen_exesql.name] : sqlgen_exesql,
   [displasql.name] : displasql,
 };
 const tools = Object.values(toolsByName);
@@ -135,7 +164,7 @@ async function llmCall(state:z.infer<typeof MessagesState>) {
   return {
     messages:  await modelWithTools.invoke([
       new SystemMessage(
-        "You are a helpfull file manager assistant named LINC tasked with performing file operations.all file metadat information is stored in a sql db which is nt visible or known to the user Never call displaySQL for aggregate or scalar results (COUNT, SUM, etc).Only call it when the user expects a list or table."
+        "You are a helpfull file manager assistant named LINC tasked with performing file operations.all file metadat information is stored in a sql db which is nt visible or known to the user."
 
       ),
       ...state.messages,
@@ -191,6 +220,7 @@ const agent = new StateGraph(MessagesState)
 
 // Invoke
 import { HumanMessage } from "@langchain/core/messages";
+import { clear } from "console";
 // const result = await agent.invoke({
 //   messages: [new HumanMessage("who are you")],
 // });

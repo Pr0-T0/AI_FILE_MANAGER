@@ -7,7 +7,7 @@ export async function createSQLChatSession() {
   });
 
   const chat = ai.chats.create({
-    model: "gemini-2.5-flash-lite",
+    model: "gemini-2.5-flash",
     history: [
       {
         role: "user",
