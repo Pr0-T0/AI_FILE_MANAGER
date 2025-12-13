@@ -29,13 +29,13 @@ function resolveDatabasePath(): string {
   const __dirname = path.dirname(__filename);
 
   if (isDev()) {
-    // 🧩 Development mode → local ./data folder (project root)
+    //  Development mode → local ./data folder (project root)
     const projectRoot = path.resolve(__dirname, "../../");
     const devDir = path.join(projectRoot, "data");
     fs.mkdirSync(devDir, { recursive: true });
     return path.join(devDir, "files_index.db");
   } else {
-    // 🚀 Production mode → Electron's userData folder
+    // Production mode → Electron's userData folder
     // app.getPath is only valid after app is ready
     const userDataPath = app.isReady()
       ? app.getPath("userData")

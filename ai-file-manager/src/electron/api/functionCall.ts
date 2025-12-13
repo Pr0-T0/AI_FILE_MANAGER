@@ -22,66 +22,6 @@ const model = new ChatGoogleGenerativeAI({
 let sqlChat: Awaited<ReturnType<typeof createSQLChatSession>> | null = null;
 
 
-// -------- exeSQL --------
-
-// function exeSQL({ sql }: { sql: string }) {
-//   console.log(`Tool Call → exeSQL`);
-//   const result = executeSQL(sql);
-//   return { result };
-// }
-
-// -------- displaySQL --------
-
-// function displaySQL({ result }: { result: any }) {
-//   console.log(`Tool Call → displaySQL`);
-//   displayResult(result);
-//   return { status: "shown" };
-// }
-
-// const toolFunctions = { sqlgen, exeSQL, displaySQL } as const;
-
-//tools defenitions for graph
-
-// const sqlgen = tool(                  //combine sqlgen and exesql (now only one call insted of two)
-//   async ({ query }) => {
-//     console.log("sqlGen called");
-
-//     //create chat if not exist
-//     if (!sqlChat) {
-//       sqlChat = await createSQLChatSession();
-//       console.log("Initialized chat session");
-//     }
-
-//     const response = await sqlChat.sendMessage({ message: query});
-//     const sql = response.text?.trim() ?? "";
-
-//     return { sql };
-//   },
-//   {
-//     name : "sqlgen",
-//     description : "Generate an SQL query from natural language question",
-//     schema : z.object({
-//       query:z.string().describe("Natural language query to convert into SQL"),
-//     }),
-//   }
-// );
-
-// const exesql = tool(
-//   async ({ sql }) => {
-//     console.log("exesql called");
-
-//     const result = await executeSQL(sql);
-
-//     return { result };
-//   },
-//   {
-//     name : "exesql",
-//     description : "Execute a SQL query against the database and return the result",
-//     schema : z.object({
-//       sql: z.string().describe("SQL query to be executed"),
-//     }),
-//   }
-// );
 const sqlgen_exesql = tool(
   async ({ query }) => {
     console.log("sqlgen_exesql called");
@@ -92,13 +32,13 @@ const sqlgen_exesql = tool(
       console.log("Initialized chat session");
     }
 
-    // 1. generate SQL
+    // generate SQL
     const response = await sqlChat.sendMessage({ message: query });
     const sql = response.text?.trim() ?? "";
 
     console.log("Generated SQL:", sql);
 
-    // 2. execute SQL
+    // execute SQL
     const result = await executeSQL(sql);
 
     return { sql, result };
@@ -135,10 +75,34 @@ const displasql = tool(
   }
 );
 
+const createfolder = tool(
+  async ( { path } ) => {
+    console.log("createFolder called");
+    const result = await createFolder(path);
+    if ("error" in result) {
+      return {
+        status : "error",
+        error : result.error,
+      };
+    }
+    return {
+      status : "created",
+      path : result.path,
+    };
+  }, 
+  {
+    name : "createfolder",
+    description : "Create a new folder at the given absolute path and update the index file database.- The path must already be resolved.- Do not guess or fabricate paths.- Use sqlgen_exesql to resolve directory paths when needed.",
+    schema : z.object({
+      path : z.string().describe("Absolute path of the folder to create"),
+    }),
+  }
+);
 
 //augment with tools
 
 const toolsByName = {
+  [createfolder.name] : createfolder,
   [sqlgen_exesql.name] : sqlgen_exesql,
   [displasql.name] : displasql,
 };
@@ -221,6 +185,7 @@ const agent = new StateGraph(MessagesState)
 // Invoke
 import { HumanMessage } from "@langchain/core/messages";
 import { clear } from "console";
+import { createFolder } from "../tools/createFolder.js";
 // const result = await agent.invoke({
 //   messages: [new HumanMessage("who are you")],
 // });
