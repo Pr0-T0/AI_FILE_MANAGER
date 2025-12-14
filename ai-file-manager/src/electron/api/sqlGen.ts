@@ -25,7 +25,7 @@ Columns:
 - path TEXT
 - name TEXT
 - parent TEXT
-- type TEXT
+- type TEXT 
 - extension TEXT
 - size INTEGER
 - created_at INTEGER
@@ -38,7 +38,8 @@ Output rules:
 4. Never include words like "Here is your SQL" or "SELECT statement".
 5. Keep context across turns and modify only if the user reports an error or requests a change.
 6. The extension column always starts with a dot like .pdf
-7. The parent column contains ther absolute path of the parent folder
+7. The parent column contains the name of parent folder
+8. only two possible values for type file | directory 
 
 Example:
 User: show me all pdf files from last week

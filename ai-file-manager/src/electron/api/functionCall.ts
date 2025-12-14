@@ -6,6 +6,7 @@ import { executeSQL } from "../db/exeSQL.js";
 import { displayResult } from "../test/displaySQL.js";
 import "dotenv/config";
 import { createSQLChatSession } from "./sqlGen.js";
+import { createFolder } from "../tools/createFolder.js";
 
 
 const model = new ChatGoogleGenerativeAI({
@@ -22,8 +23,8 @@ const model = new ChatGoogleGenerativeAI({
 let sqlChat: Awaited<ReturnType<typeof createSQLChatSession>> | null = null;
 
 
-const sqlgen_exesql = tool(
-  async ({ query }) => {
+const query_file_index = tool(
+  async ({ request }) => {
     console.log("sqlgen_exesql called");
 
     // create chat if not exist
@@ -33,7 +34,8 @@ const sqlgen_exesql = tool(
     }
 
     // generate SQL
-    const response = await sqlChat.sendMessage({ message: query });
+    console.log(request);
+    const response = await sqlChat.sendMessage({ message: request });
     const sql = response.text?.trim() ?? "";
 
     console.log("Generated SQL:", sql);
@@ -41,39 +43,47 @@ const sqlgen_exesql = tool(
     // execute SQL
     const result = await executeSQL(sql);
 
-    return { sql, result };
+    return {  result };
   },
   {
-    name: "sqlgen_exesql",
-    description: "Generate SQL from natural language and execute it in one step",
+    name: "query_file_index",
+    description: "Search the file index using natural language and return factual information about matching files and folders",
     schema: z.object({
-      query: z.string().describe("Natural language query to convert into SQL and execute"),
+      request : z.string().describe("Natural language description of the files or folders to retrieve"),
     }),
   }
 );
 
 
-const displasql = tool(
-  ({ result }) => {
-    console.log("displaySQL called");
-    const displayStatus = displayResult(result);
-    if(displayStatus === true)
-      return {status : "shown"}
-    else {
-      return {
-        status: "error",
-        error: displayStatus,
-      };
+const display_file_results = tool(
+  ({ data }) => {
+    console.log("display_file_results called");
+
+    const displayStatus = displayResult(data);
+
+    if (displayStatus === true) {
+      return { status: "shown" };
     }
+
+    return {
+      status: "error",
+      error: displayStatus,
+    };
   },
   {
-    name : "displaysql",
-    description : "Display tabular file listings in the UI. Do not use for counts or aggregate values",
-    schema : z.object({
-      result : z.any().describe("Result returned from executing the sql query"),
+    name: "display_file_results",
+    description:
+      "Display file or folder search results in the user interface. Use only for lists of files or folders.",
+    schema: z.object({
+      data: z
+        .any()
+        .describe(
+          "Structured file or folder data returned from the file index"
+        ),
     }),
   }
 );
+
 
 const createfolder = tool(
   async ( { path } ) => {
@@ -81,7 +91,7 @@ const createfolder = tool(
     const result = await createFolder(path);
     if ("error" in result) {
       return {
-        status : "error",
+        status : "error : Absolute path required. Use sqlgen_exesql to fetch a file path from the target directory",
         error : result.error,
       };
     }
@@ -103,8 +113,8 @@ const createfolder = tool(
 
 const toolsByName = {
   [createfolder.name] : createfolder,
-  [sqlgen_exesql.name] : sqlgen_exesql,
-  [displasql.name] : displasql,
+  [query_file_index.name] : query_file_index,
+  [display_file_results.name] : display_file_results,
 };
 const tools = Object.values(toolsByName);
 const modelWithTools = model.bindTools(tools);
@@ -185,10 +195,12 @@ const agent = new StateGraph(MessagesState)
 // Invoke
 import { HumanMessage } from "@langchain/core/messages";
 import { clear } from "console";
-import { createFolder } from "../tools/createFolder.js";
+
+// import { console } from "inspector"; this import ruined two days of development :)
 // const result = await agent.invoke({
 //   messages: [new HumanMessage("who are you")],
 // });
+
 
 export async function runAgent(userInput: string) {
   const result = await agent.invoke({
