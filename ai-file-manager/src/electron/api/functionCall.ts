@@ -1,58 +1,63 @@
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+// import { ChatGoogleGenerativeAI } from "@langchain/google-genai"; //for gemini picha api quota
+import { ChatOllama } from "@langchain/ollama"; //for local ollama hosted models
 import { tool } from "@langchain/core/tools";
 import * as z from "zod";
 
+import { sqlGen } from "./sqlGen.js";
 import { executeSQL } from "../db/exeSQL.js";
 import { displayResult } from "../test/displaySQL.js";
 import "dotenv/config";
-import { createSQLChatSession } from "./sqlGen.js";
 import { createFolder } from "../tools/createFolder.js";
 
 
-const model = new ChatGoogleGenerativeAI({
-  model : "gemini-2.5-flash",
-  temperature: 0,
-  apiKey: process.env.GEMINI_API_KEY_1,
+// const model = new ChatGoogleGenerativeAI({ //gemini picha
+//   model : "gemini-2.5-flash",
+//   temperature: 0,
+//   apiKey: process.env.GEMINI_API_KEY_1,
+// });
+
+const model = new ChatOllama({ // llama 3.1:8b try locally
+  model: "llama3.1:8b",
+  temperature:0,
 });
 
 
 /* ===================== TOOL IMPLEMENTATIONS ===================== */
 
-// -------- sqlgen (uses chat session internally) --------
-
-let sqlChat: Awaited<ReturnType<typeof createSQLChatSession>> | null = null;
 
 
 const query_file_index = tool(
   async ({ request }) => {
-    console.log("sqlgen_exesql called");
+    console.log("query_file_index called");
 
-    // create chat if not exist
-    if (!sqlChat) {
-      sqlChat = await createSQLChatSession();
-      console.log("Initialized chat session");
-    }
-
-    // generate SQL
-    console.log(request);
-    const response = await sqlChat.sendMessage({ message: request });
-    const sql = response.text?.trim() ?? "";
+    // 1. Generate SQL (stateless)
+    console.log("Natural language request:", request);
+    const sql = await sqlGen(request);
 
     console.log("Generated SQL:", sql);
 
-    // execute SQL
+    // 2. Safety check (optional but recommended)
+    if (!sql || !sql.trim().toUpperCase().startsWith("SELECT")) {
+      throw new Error("sqlGen produced invalid or non-SELECT SQL");
+    }
+
+    // 3. Execute SQL
     const result = await executeSQL(sql);
 
-    return {  result };
+    return { result };
   },
   {
     name: "query_file_index",
-    description: "Search the file index using natural language and return factual information about matching files and folders",
+    description:
+      "Search the file index using natural language and return factual information about matching files and folders",
     schema: z.object({
-      request : z.string().describe("Natural language description of the files or folders to retrieve"),
+      request: z
+        .string()
+        .describe("Natural language description of the files or folders to retrieve"),
     }),
   }
 );
+
 
 
 const display_file_results = tool(
