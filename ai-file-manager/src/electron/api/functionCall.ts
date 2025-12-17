@@ -5,7 +5,6 @@ import * as z from "zod";
 import { executeSQL } from "../db/exeSQL.js";
 import { displayResult } from "../test/displaySQL.js";
 import "dotenv/config";
-import { createSQLChatSession } from "./sqlGen.js";
 import { createFolder } from "../tools/createFolder.js";
 
 
@@ -18,27 +17,14 @@ const model = new ChatGoogleGenerativeAI({
 
 /* ===================== TOOL IMPLEMENTATIONS ===================== */
 
-// -------- sqlgen (uses chat session internally) --------
-
-let sqlChat: Awaited<ReturnType<typeof createSQLChatSession>> | null = null;
-
 
 const query_file_index = tool(
   async ({ request }) => {
     console.log("sqlgen_exesql called");
 
-    // create chat if not exist
-    if (!sqlChat) {
-      sqlChat = await createSQLChatSession();
-      console.log("Initialized chat session");
-    }
-
-    // generate SQL
-    console.log(request);
-    const response = await sqlChat.sendMessage({ message: request });
-    const sql = response.text?.trim() ?? "";
-
-    console.log("Generated SQL:", sql);
+    //generate SQL
+    console.log("[AI]:request : ",request);
+    const sql = await sqlGen(request);
 
     // execute SQL
     const result = await executeSQL(sql);
@@ -108,6 +94,52 @@ const createfolder = tool(
     }),
   }
 );
+const moveorcopypath = tool(
+  async ({ sourcePath, destinationPath, operation }) => {
+    console.log("moveOrCopyPath called");
+
+    const result = await moveorCopyPath(
+      sourcePath,
+      destinationPath,
+      operation
+    );
+
+    if ("error" in result) {
+      return {
+        status:
+          "error : Absolute paths required. Do not guess paths. Use sqlgen_exesql to resolve file or directory paths before calling this tool.",
+        error: result.error,
+      };
+    }
+
+    return {
+      status: operation === "cut" ? "moved" : "copied",
+      path: result.path,
+    };
+  },
+  {
+    name: "moveorcopypath",
+    description:
+      "Copy or move (cut) a file or folder from a resolved absolute source path to a resolved absolute destination path. " +
+      "Do not fabricate paths. " +
+      "Use sqlgen_exesql to resolve both source and destination paths before calling this tool.",
+    schema: z.object({
+      sourcePath: z
+        .string()
+        .describe("Absolute path of the source file or folder"),
+      destinationPath: z
+        .string()
+        .describe(
+          "Absolute destination directory or full target path"
+        ),
+      operation: z
+        .enum(["copy", "cut"])
+        .describe("Operation type: copy (duplicate) or cut (move)"),
+    }),
+  }
+);
+
+
 
 //augment with tools
 
@@ -115,6 +147,7 @@ const toolsByName = {
   [createfolder.name] : createfolder,
   [query_file_index.name] : query_file_index,
   [display_file_results.name] : display_file_results,
+  [moveorcopypath.name] : moveorcopypath,
 };
 const tools = Object.values(toolsByName);
 const modelWithTools = model.bindTools(tools);
@@ -195,6 +228,8 @@ const agent = new StateGraph(MessagesState)
 // Invoke
 import { HumanMessage } from "@langchain/core/messages";
 import { clear } from "console";
+import { sqlGen } from "./sqlGen.js";
+import { moveorCopyPath } from "../tools/moveorCopyPath.js";
 
 // import { console } from "inspector"; this import ruined two days of development :)
 // const result = await agent.invoke({

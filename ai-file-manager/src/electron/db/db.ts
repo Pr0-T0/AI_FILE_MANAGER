@@ -190,6 +190,21 @@ export const upsertMany = (rows: FileMeta[]) => {
   return transaction(rows);
 };
 
+export function deleteByPathPrefix(prefix: string) { //for copy or cut operations removes danglng references
+  const database = ensureDB();
+
+  const normalized = path.normalize(prefix);
+
+  const stmt = database.prepare(`
+    DELETE FROM files_index
+    WHERE path = ?
+       OR path LIKE ? || '/%'
+  `);
+
+  return stmt.run(normalized, normalized);
+}
+
+
 export function vacuum() {
   const database = ensureDB();
   database.exec("VACUUM");

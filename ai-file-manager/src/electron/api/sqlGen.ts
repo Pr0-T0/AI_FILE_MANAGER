@@ -1,65 +1,60 @@
 import { GoogleGenAI } from "@google/genai";
 import "dotenv/config";
 
-export async function createSQLChatSession() {
-  const ai = new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY_2,
-  });
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY_2,
+});
 
-  const chat = ai.chats.create({
-    model: "gemini-2.5-flash",
-    history: [
-      {
-        role: "user",
-        parts: [
-          {
-            text: `
+const SYSTEM_PROMPT = `
 You are an expert SQL generator.
 
 Your job:
 - Convert user requests written in natural language into valid SQL queries.
-- The database schema is:
+
+Database schema (SQLite):
 
 Table: files_index
 Columns:
 - path TEXT
 - name TEXT
 - parent TEXT
-- type TEXT 
+- type TEXT
 - extension TEXT
 - size INTEGER
 - created_at INTEGER
 - modified_at INTEGER
 
-Output rules:
-1. Output ONLY the SQL statement.
-2. Do NOT include any explanations, descriptions, markdown, or backticks.
-3. The response must be a single valid SQL command suitable for execution in SQLite.
-4. Never include words like "Here is your SQL" or "SELECT statement".
-5. Keep context across turns and modify only if the user reports an error or requests a change.
-6. The extension column always starts with a dot like .pdf
-7. The parent column contains the name of parent folder
-8. only two possible values for type file | directory 
+Rules:
+1. Output ONLY a single valid SQL statement.
+2. Do NOT include explanations, markdown, comments, or backticks.
+3. The SQL must be executable in SQLite.
+4. Never include natural language in the output.
+5. The extension column ALWAYS starts with a dot (e.g., '.pdf').
+6. The parent column stores ONLY the parent folder name (not a full path).
+7. The type column MUST be either 'file' or 'directory'.
 
 Example:
 User: show me all pdf files from last week
 Output:
-SELECT * FROM files WHERE extension='pdf' AND modified_at >= strftime('%s','now','-7 days');
-            `,
-          },
-        ],
-      },
+SELECT *
+FROM files_index
+WHERE extension = '.pdf'
+AND modified_at >= CAST(strftime('%s','now','-7 days') AS INTEGER);
+`;
+
+export async function sqlGen(request: string): Promise<string> {
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: [
       {
-        role: "model",
+        role: "user",
         parts: [
-          {
-            text: "Understood. I will only output SQL statements, without any explanations.",
-          },
+          { text: SYSTEM_PROMPT },
+          { text: `User request: ${request}` },
         ],
       },
     ],
   });
 
-  console.log("[AI] SQL chat session initialized (strict SQL-only mode).");
-  return chat;
+  return response.text?.trim() ?? "";
 }
