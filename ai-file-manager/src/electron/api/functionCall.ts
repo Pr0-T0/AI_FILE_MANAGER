@@ -171,7 +171,7 @@ async function llmCall(state:z.infer<typeof MessagesState>) {
   return {
     messages:  await modelWithTools.invoke([
       new SystemMessage(
-        "You are a helpfull file manager assistant named LINC tasked with performing file operations.all file metadat information is stored in a sql db which is nt visible or known to the user."
+        "You are a helpfull file manager assistant named LINC tasked with performing file operations.all file metadata information is stored in a sql db which is nt visible or known to the user.always try to display the final result to the user not only the text responce"
 
       ),
       ...state.messages,

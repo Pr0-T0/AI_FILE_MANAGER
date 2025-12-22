@@ -7,6 +7,7 @@ import { initDB } from "./db/db.js";
 import { getRootScanPaths } from "./db/getRoots.js";
 import { scanDirectory } from "./db/scanner.js";
 import { runAgent } from "./api/functionCall.js";
+import { startLanPresence } from "./webrtc/presence.js";
 
 // -------------------- APP SETUP --------------------
 
@@ -27,6 +28,9 @@ app.whenReady().then(async () => {
       console.error(`[Scan] Error scanning root ${root}:`, err);
     }
   }
+
+  //startLanPresence
+  startLanPresence();
 
   // --- Create Main Window ---
   const mainWindow = new BrowserWindow({
