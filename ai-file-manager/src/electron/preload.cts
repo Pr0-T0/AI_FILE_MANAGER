@@ -2,11 +2,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 contextBridge.exposeInMainWorld("electron", {
-  /**
-   * Sends a natural-language query from the frontend to the main process.
-   * The main process (functionCall.ts) runs the compositional AI chain:
-   * sqlgen → exeSQL → displaySQL
-   */
+  //Sends a natural-language query from the frontend to the main process.
   generateSQL: async (userQuery: string) => {
     try {
       const result = await ipcRenderer.invoke("ai:chat-sql", userQuery);
@@ -16,4 +12,10 @@ contextBridge.exposeInMainWorld("electron", {
       return { success: false, error: error.message ?? "Unknown error" };
     }
   },
+});
+
+contextBridge.exposeInMainWorld("settingsAPI", {
+  get: () => ipcRenderer.invoke("settings:get"),
+  set: (settings: any) => ipcRenderer.invoke("settings:set", settings),
+  pickFolder: () => ipcRenderer.invoke("settings:pickFolder"),
 });

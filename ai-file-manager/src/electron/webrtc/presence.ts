@@ -74,13 +74,13 @@ function cleanupDevices() {
 
 // print status
 function printStatus() {
-  console.clear();
-  console.log("=== LAN Devices ===");
-  console.log(`This device: ${DEVICE_ID}`);
-  console.log("");
+  // console.clear();
+  // console.log("=== LAN Devices ===");
+  // console.log(`This device: ${DEVICE_ID}`);
+  // console.log("");
 
   if (devices.size === 0) {
-    console.log("No other devices detected");
+    // console.log("No other devices detected");
     return;
   }
 
