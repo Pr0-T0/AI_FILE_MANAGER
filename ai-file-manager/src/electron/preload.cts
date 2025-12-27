@@ -19,3 +19,7 @@ contextBridge.exposeInMainWorld("settingsAPI", {
   set: (settings: any) => ipcRenderer.invoke("settings:set", settings),
   pickFolder: () => ipcRenderer.invoke("settings:pickFolder"),
 });
+
+contextBridge.exposeInMainWorld("rescanAPI", {
+  rescan: () => ipcRenderer.invoke("scan:rescan"),
+});

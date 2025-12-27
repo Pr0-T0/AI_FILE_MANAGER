@@ -9,13 +9,9 @@ type Settings = {
 
 export default function SettingsScreen() {
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [scanning, setScanning] = useState(false);
 
-  // Load settings on mount
-
-
-  // using ts -ignore fo now, handle types proper later
-  
-
+  // ---------------- Load settings on mount ----------------
   useEffect(() => {
     // @ts-ignore
     window.settingsAPI.get().then((data: Settings) => {
@@ -23,6 +19,7 @@ export default function SettingsScreen() {
     });
   }, []);
 
+  // ---------------- Add folder ----------------
   const addFolder = async () => {
     if (!settings) return;
 
@@ -30,7 +27,7 @@ export default function SettingsScreen() {
     const folder = await window.settingsAPI.pickFolder();
     if (!folder || settings.scan.roots.includes(folder)) return;
 
-    const updated = {
+    const updated: Settings = {
       ...settings,
       scan: {
         ...settings.scan,
@@ -43,10 +40,11 @@ export default function SettingsScreen() {
     window.settingsAPI.set(updated);
   };
 
+  // ---------------- Remove folder ----------------
   const removeFolder = (folder: string) => {
     if (!settings) return;
 
-    const updated = {
+    const updated: Settings = {
       ...settings,
       scan: {
         ...settings.scan,
@@ -59,6 +57,23 @@ export default function SettingsScreen() {
     window.settingsAPI.set(updated);
   };
 
+  // ---------------- Manual rescan ----------------
+  const handleRescan = async () => {
+    if (scanning) return;
+
+    setScanning(true);
+    try {
+      // @ts-ignore
+      await window.rescanAPI.rescan();
+      console.log("Rescan completed");
+    } catch (err) {
+      console.error("Rescan failed", err);
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  // ---------------- Loading state ----------------
   if (!settings) {
     return (
       <div className="h-full w-full flex items-center justify-center text-gray-400">
@@ -67,6 +82,7 @@ export default function SettingsScreen() {
     );
   }
 
+  // ---------------- UI ----------------
   return (
     <div className="h-full w-full p-6 text-gray-200">
       <h1 className="text-xl font-semibold mb-4">Settings</h1>
@@ -97,11 +113,21 @@ export default function SettingsScreen() {
           ))}
         </div>
 
+        {/* Add Folder */}
         <button
           onClick={addFolder}
           className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm"
         >
           + Add Folder
+        </button>
+
+        {/* Re-scan */}
+        <button
+          onClick={handleRescan}
+          disabled={scanning}
+          className="mt-3 ml-3 px-4 py-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 rounded text-sm"
+        >
+          {scanning ? "Re-indexing…" : "Re-scan files"}
         </button>
       </div>
     </div>

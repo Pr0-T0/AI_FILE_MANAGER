@@ -210,6 +210,43 @@ export function vacuum() {
   database.exec("VACUUM");
 }
 
+
+export function resetDB() {
+  const database = ensureDB();
+
+  console.log("[DB] Resetting files_index table");
+
+  database.exec(`
+    DROP TABLE IF EXISTS files_index;
+  `);
+
+  database.exec(`
+    CREATE TABLE files_index (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      path          TEXT NOT NULL UNIQUE,
+      parent        TEXT,
+      name          TEXT NOT NULL,
+      type          TEXT NOT NULL,
+      extension     TEXT,
+      size          INTEGER DEFAULT 0,
+      created_at    INTEGER,
+      modified_at   INTEGER,
+      hash          TEXT
+    );
+  `);
+
+  database.exec(`
+    CREATE INDEX IF NOT EXISTS idx_files_name        ON files_index(name);
+    CREATE INDEX IF NOT EXISTS idx_files_parent      ON files_index(parent);
+    CREATE INDEX IF NOT EXISTS idx_files_ext         ON files_index(extension);
+    CREATE INDEX IF NOT EXISTS idx_files_modified_at ON files_index(modified_at);
+    CREATE INDEX IF NOT EXISTS idx_files_type        ON files_index(type);
+  `);
+
+  console.log("[DB] files_index reset complete");
+}
+
+
 export function closeDB() {
   if (db) {
     db.pragma("wal_checkpoint(FULL)");

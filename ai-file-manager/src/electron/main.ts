@@ -3,7 +3,7 @@ import { app, BrowserWindow, ipcMain, dialog } from "electron";
 import { join } from "path";
 import { isDev } from "./util.js";
 import { getPreloadPath } from "./pathResolver.js";
-import { initDB } from "./db/db.js";
+import { initDB, resetDB } from "./db/db.js";
 import { scanDirectory } from "./db/scanner.js";
 import { runAgent } from "./api/functionCall.js";
 import { startLanPresence } from "./webrtc/presence.js";
@@ -80,7 +80,26 @@ app.whenReady().then(async () => {
     });
     return result.canceled ? null : result.filePaths[0];
   });
+
+  //rescan IPC 
+  ipcMain.handle("scan:rescan", async () => {
+  console.log("Manual Rescan");
+
+  const settings = loadSettings();
+  const roots = settings.scan.roots;
+
+  resetDB();
+
+  for (const root of roots) {
+    try {
+      await scanDirectory(root);
+    } catch (err) {
+      console.error("Error scanning Root : ",root, err)
+    }
+  }
 });
+});
+
 
 // ---------------- Graceful Shutdown ----------------
 app.on("before-quit", () => {
