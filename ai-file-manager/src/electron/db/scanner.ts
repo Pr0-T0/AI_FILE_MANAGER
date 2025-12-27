@@ -9,7 +9,7 @@ import { upsertMany } from "./db.js";
 interface FileMeta {
   path: string;
   name: string;
-  parent: string;           // now stores ONLY folder name
+  parent: string; // folder name only (unchanged)
   type: "file" | "directory";
   extension?: string;
   size?: number;
@@ -27,94 +27,107 @@ const IGNORE_DIRS = new Set([
   ".git", "__pycache__", ".vscode"
 ]);
 
-function shouldIgnore(name: string, stat: fs.Stats): boolean {
-  if (name.startsWith(".")) return true; // hidden dirs/files
+function shouldIgnore(name: string): boolean {
+  if (name.startsWith(".")) return true;
   if (IGNORE_DIRS.has(name)) return true;
   return false;
 }
 
-export async function scanDirectory(dir: string, depth = 0): Promise<void> {
-  try {
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
+// ---------------- PRODUCTION-SAFE SCANNER ----------------
+export async function scanDirectory(
+  root: string,
+  dir: string = root,
+  realRoot: string = fs.realpathSync(root)
+): Promise<void> {
+  let realDir: string;
 
-    // Stat current folder (add it as a directory entry)
-    let dirStat: fs.Stats;
+  // Enforce boundary on every recursion
+  try {
+    realDir = fs.realpathSync(dir);
+    if (!realDir.startsWith(realRoot)) {
+      console.warn("[SCAN] Escaped root, skipping:", realDir);
+      return;
+    }
+  } catch {
+    return;
+  }
+
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  // Add current directory itself
+  try {
+    const dirStat = fs.statSync(dir);
+    batch.push({
+      path: dir,
+      name: path.basename(dir),
+      parent: path.basename(path.dirname(dir)),
+      type: "directory",
+      size: 0,
+      created_at: dirStat.birthtimeMs,
+      modified_at: dirStat.mtimeMs
+    });
+  } catch {
+    // ignore unreadable folder
+  }
+
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+
+    // Skip symlinks completely (important)
+    if (entry.isSymbolicLink()) continue;
+
+    let stat: fs.Stats;
     try {
-      dirStat = fs.statSync(dir);
+      stat = fs.statSync(full);
+    } catch {
+      continue;
+    }
+
+    if (entry.isDirectory()) {
+      if (shouldIgnore(entry.name)) continue;
+
       batch.push({
-        path: dir,
-        name: path.basename(dir),
-        parent: path.basename(path.dirname(dir)),     // ← modified
+        path: full,
+        name: entry.name,
+        parent: path.basename(dir),
         type: "directory",
         size: 0,
-        created_at: dirStat.birthtimeMs,
-        modified_at: dirStat.mtimeMs
+        created_at: stat.birthtimeMs,
+        modified_at: stat.mtimeMs
       });
-    } catch {
-      /* skip unreadable folders */
+
+      await scanDirectory(root, full, realRoot);
+
+    } else if (entry.isFile()) {
+      if (shouldIgnore(entry.name)) continue;
+
+      batch.push({
+        path: full,
+        name: entry.name,
+        parent: path.basename(dir),
+        type: "file",
+        extension: path.extname(entry.name),
+        size: stat.size,
+        created_at: stat.birthtimeMs,
+        modified_at: stat.mtimeMs
+      });
     }
 
-    for (const entry of entries) {
-      const full = path.join(dir, entry.name);
-      let stat: fs.Stats;
-      try {
-        stat = fs.statSync(full);
-      } catch {
-        continue;
-      }
-
-      const isHomeRoot = depth === 0;
-
-      if (entry.isDirectory()) {
-        if (shouldIgnore(entry.name, stat)) continue;
-
-        // add the folder itself before recursion
-        batch.push({
-          path: full,
-          name: entry.name,
-          parent: path.basename(dir),       // ← modified
-          type: "directory",
-          size: 0,
-          created_at: stat.birthtimeMs,
-          modified_at: stat.mtimeMs
-        });
-
-        // only recurse below home for allowed root dirs
-        const allowedRootDirs = ["Documents", "Downloads", "Desktop", "Pictures", "Videos", "Music"];
-
-        if (!isHomeRoot || allowedRootDirs.includes(entry.name)) {
-          await scanDirectory(full, depth + 1);
-        }
-
-      } else if (entry.isFile()) {
-        if (shouldIgnore(entry.name, stat)) continue;
-
-        batch.push({
-          path: full,
-          name: entry.name,
-          parent: path.basename(dir),       // ← modified
-          type: "file",
-          extension: path.extname(entry.name),
-          size: stat.size,
-          created_at: stat.birthtimeMs,
-          modified_at: stat.mtimeMs
-        });
-      }
-
-      // Flush batch if full
-      if (batch.length >= BATCH_SIZE) {
-        upsertMany(batch);
-        batch = [];
-      }
-    }
-
-    // flush any leftovers after this folder
-    if (depth === 0 && batch.length > 0) {
+    // Flush batch
+    if (batch.length >= BATCH_SIZE) {
       upsertMany(batch);
       batch = [];
     }
+  }
 
-  } catch (err) {
-    // ignore permission errors or broken symlinks
+  // Flush leftovers only once (root call)
+  if (dir === root && batch.length > 0) {
+    upsertMany(batch);
+    batch = [];
   }
 }
