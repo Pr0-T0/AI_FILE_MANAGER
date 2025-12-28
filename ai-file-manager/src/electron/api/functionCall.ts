@@ -15,7 +15,6 @@ const model = new ChatGoogleGenerativeAI({
 });
 
 
-/* ===================== TOOL IMPLEMENTATIONS ===================== */
 
 
 const query_file_index = tool(

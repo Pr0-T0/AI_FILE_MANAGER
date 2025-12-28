@@ -23,3 +23,7 @@ contextBridge.exposeInMainWorld("settingsAPI", {
 contextBridge.exposeInMainWorld("rescanAPI", {
   rescan: () => ipcRenderer.invoke("scan:rescan"),
 });
+
+contextBridge.exposeInMainWorld("lanAPI", {
+  getDevices: () => ipcRenderer.invoke("lan:getDevices"),
+});

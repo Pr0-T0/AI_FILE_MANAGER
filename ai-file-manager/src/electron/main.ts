@@ -6,7 +6,7 @@ import { getPreloadPath } from "./pathResolver.js";
 import { initDB, resetDB } from "./db/db.js";
 import { scanDirectory } from "./db/scanner.js";
 import { runAgent } from "./api/functionCall.js";
-import { startLanPresence } from "./webrtc/presence.js";
+import { getLanDevices, startLanPresence } from "./webrtc/presence.js";
 import { loadSettings, saveSettings } from "./settings.js";
 
 // Disable GPU
@@ -97,7 +97,14 @@ app.whenReady().then(async () => {
       console.error("Error scanning Root : ",root, err)
     }
   }
-});
+  });
+
+  //UDP presence IPC
+  ipcMain.handle("lan:getDevices", () => {
+    return getLanDevices();
+  });
+
+
 });
 
 

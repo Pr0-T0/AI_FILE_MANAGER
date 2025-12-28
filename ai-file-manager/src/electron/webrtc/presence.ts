@@ -114,3 +114,9 @@ export function startLanPresence() {
     setInterval(printStatus, HEARTBEAT_INTERVAL);
     });
 }
+
+
+//function for IPC
+export function getLanDevices() {
+  return Array.from(devices.values());
+}
