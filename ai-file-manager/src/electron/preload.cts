@@ -2,17 +2,20 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 contextBridge.exposeInMainWorld("electron", {
-  //Sends a natural-language query from the frontend to the main process.
-  generateSQL: async (userQuery: string) => {
+  aiQuery: async (userQuery: string) => {
     try {
-      const result = await ipcRenderer.invoke("ai:chat-sql", userQuery);
-      return result; // expected { success: boolean, result?: any, error?: string }
+      return await ipcRenderer.invoke("ai:chat-sql", userQuery);
     } catch (error: any) {
-      console.error("[Preload] generateSQL error:", error);
-      return { success: false, error: error.message ?? "Unknown error" };
+      console.error("[Preload] aiQuery error:", error);
+      return {
+        kind: "aggregate",
+        metric: "error",
+        value: error.message ?? "Unknown error",
+      };
     }
   },
 });
+
 
 contextBridge.exposeInMainWorld("settingsAPI", {
   get: () => ipcRenderer.invoke("settings:get"),

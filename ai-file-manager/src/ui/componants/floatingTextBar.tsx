@@ -21,7 +21,7 @@ export default function FloatingTextBar({ onAICommand }: FloatingTextBarProps) {
     try {
       // Call the IPC-exposed compositional AI chain (through preload)
       // @ts-ignore
-      const result = await window.electron.generateSQL(userQuery);
+      const result = await window.electron.aiQuery(userQuery);
 
       console.log("[UI] AI Result:", result);
 

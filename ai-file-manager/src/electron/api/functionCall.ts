@@ -22,12 +22,16 @@ const query_file_index = tool(
     console.log("sqlgen_exesql called");
 
     //generate SQL
-    console.log("[AI]:request : ",request);
+    console.log("[AI] request : ",request);
     const sql = await sqlGen(request);
+    console.log("[AI] sql : ",sql);
 
     // execute SQL
-    const result = await executeSQL(sql);
+    const rows = await executeSQL(sql);
 
+    const result = normalizeSQLResult(rows);
+
+    console.log(result);
     return {  result };
   },
   {
@@ -39,35 +43,62 @@ const query_file_index = tool(
   }
 );
 
-
-const display_file_results = tool(
-  ({ data }) => {
-    console.log("display_file_results called");
-
-    const displayStatus = displayResult(data);
-
-    if (displayStatus === true) {
-      return { status: "shown" };
-    }
-
+export const display_result_to_ui = tool(
+  async ({ result, message }) => {
+    // No side effects here.
+    // Just declare the final UI payload.
     return {
-      status: "error",
-      error: displayStatus,
+      payload: {
+        ...result,   // { kind, items | metric/value }
+        message,     // brief human-readable explanation
+      },
     };
   },
   {
-    name: "display_file_results",
+    name: "display_result_to_ui",
     description:
-      "Display file or folder search results in the user interface. Use only for lists of files or folders.",
+      "Finalize the AI response and make it available to the frontend UI. " +
+      "This tool marks the end of reasoning.",
     schema: z.object({
-      data: z
-        .any()
-        .describe(
-          "Structured file or folder data returned from the file index"
-        ),
+      result: z.object({
+        kind: z.enum(["files", "aggregate"]),
+      }).passthrough(),
+      message: z
+        .string()
+        .describe("Short, user-facing explanation of the result"),
     }),
   }
 );
+
+
+// const display_file_results = tool(
+//   ({ data }) => {
+//     console.log("display_file_results called");
+
+//     const displayStatus = displayResult(data);
+
+//     if (displayStatus === true) {
+//       return { status: "shown" };
+//     }
+
+//     return {
+//       status: "error",
+//       error: displayStatus,
+//     };
+//   },
+//   {
+//     name: "display_file_results",
+//     description:
+//       "Display file or folder search results in the user interface. Use only for lists of files or folders.",
+//     schema: z.object({
+//       data: z
+//         .any()
+//         .describe(
+//           "Structured file or folder data returned from the file index"
+//         ),
+//     }),
+//   }
+// );
 
 
 const createfolder = tool(
@@ -145,7 +176,7 @@ const moveorcopypath = tool(
 const toolsByName = {
   [createfolder.name] : createfolder,
   [query_file_index.name] : query_file_index,
-  [display_file_results.name] : display_file_results,
+  [display_result_to_ui.name] : display_result_to_ui,
   [moveorcopypath.name] : moveorcopypath,
 };
 const tools = Object.values(toolsByName);
@@ -229,6 +260,7 @@ import { HumanMessage } from "@langchain/core/messages";
 import { clear } from "console";
 import { sqlGen } from "./sqlGen.js";
 import { moveorCopyPath } from "../tools/moveorCopyPath.js";
+import { normalizeSQLResult } from "../tools/normalizeSQLResult.js";
 
 // import { console } from "inspector"; this import ruined two days of development :)
 // const result = await agent.invoke({
@@ -245,7 +277,25 @@ export async function runAgent(userInput: string) {
     console.log(`[${message.getType()}]: ${message.text}`);
   }
 
-  return result; // full result including messages + tool traces
+  for (const msg of result.messages) {
+    if (
+      msg.getType() === "tool" &&
+      msg.name === "display_result_to_ui"
+    ) {
+      const parsed = JSON.parse(msg.text);
+      return parsed.payload; //  ONLY THIS goes to UI
+    }
+  }
+
+  // fallback (important)
+  return {
+    kind: "aggregate",
+    metric: "error",
+    value: "No displayable result",
+    message: "AI did not produce a UI result.",
+  };
+
+ // return result; // full result including messages + tool traces
 }
 
 
