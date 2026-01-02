@@ -61,7 +61,7 @@ export const display_result_to_ui = tool(
       "This tool marks the end of reasoning.",
     schema: z.object({
       result: z.object({
-        kind: z.enum(["files", "aggregate"]),
+        kind: z.enum(["files", "aggregate","conversation"]),
       }).passthrough(),
       message: z
         .string()
@@ -257,7 +257,7 @@ const agent = new StateGraph(MessagesState)
 
 // Invoke
 import { HumanMessage } from "@langchain/core/messages";
-import { clear } from "console";
+// import { clear } from "console";
 import { sqlGen } from "./sqlGen.js";
 import { moveorCopyPath } from "../tools/moveorCopyPath.js";
 import { normalizeSQLResult } from "../tools/normalizeSQLResult.js";
@@ -269,6 +269,9 @@ import { normalizeSQLResult } from "../tools/normalizeSQLResult.js";
 
 
 export async function runAgent(userInput: string) {
+  let lastQueryResult: any = null; //for storing paths ig
+
+
   const result = await agent.invoke({
     messages: [new HumanMessage(userInput)],
   });
@@ -277,14 +280,41 @@ export async function runAgent(userInput: string) {
     console.log(`[${message.getType()}]: ${message.text}`);
   }
 
+  //capture file paths and meta information
+  for (const msg of result.messages) {
+    if (
+      msg.getType() === "tool" &&
+      msg.name === "query_file_index"
+    ){
+      lastQueryResult = JSON.parse(msg.text).result;
+    }
+  }
+
+
+  //For sending Data to Frontend
   for (const msg of result.messages) {
     if (
       msg.getType() === "tool" &&
       msg.name === "display_result_to_ui"
     ) {
       const parsed = JSON.parse(msg.text);
-      return parsed.payload; //  ONLY THIS goes to UI
+      return {
+        ...(lastQueryResult ?? {}),
+        ...parsed.payload,
+        items:parsed.payload.items ?? lastQueryResult?.items,
+      };
     }
+  }
+
+  // coversational fallback
+  const lastAI = [...result.messages]
+    .reverse()
+    .find(m => m.getType() === "ai");
+  if (lastAI) {
+    return {
+      kind: "conversation",
+      message: lastAI.text,
+    };
   }
 
   // fallback (important)
