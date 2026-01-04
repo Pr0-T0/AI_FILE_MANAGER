@@ -20,6 +20,7 @@ export type NormalizedFile = {
   path: string;
   parent: string | null;
   type: "file" | "folder";
+  file_type: "image" | "pdf" | "doc" | "excel" | "folder" | "other";
   extension?: string;
   size?: number;
   modified_at?: string;
@@ -61,18 +62,27 @@ export function normalizeSQLResult(rows: any[]): NormalizedResult {
 function normalizeFiles(rows: any[]): NormalizedFilesResult {
   return {
     kind: "files",
-    items: rows.map((row) => ({
-      id: row.path,
-      name: row.name,
-      path: row.path,
-      parent: row.parent ?? null,
-      type: row.type === "directory" ? "folder" : "file",
-      extension: row.extension ?? undefined,
-      size: row.size ?? undefined,
-      modified_at: row.modified_at ?? undefined,
-    })),
+    items: rows.map((row) => {
+      const type: "file" | "folder" =
+        row.type === "directory" ? "folder" : "file";
+
+      const extension = row.extension ?? undefined;
+
+      return {
+        id: row.path,
+        name: row.name,
+        path: row.path,
+        parent: row.parent ?? null,
+        type,
+        file_type: classifyFile(type, extension), 
+        extension,
+        size: row.size ?? undefined,
+        modified_at: row.modified_at ?? undefined,
+      };
+    }),
   };
 }
+
 
 // Aggregate normalization
 
@@ -126,3 +136,21 @@ function isAggregateRow(row: any): boolean {
     (v) => typeof v === "number" || typeof v === "string"
   );
 }
+
+function classifyFile(
+  type: "file" | "folder",
+  extension?: string
+): NormalizedFile["file_type"] {
+  if (type === "folder") return "folder";
+  if (!extension) return "other";
+
+  const ext = extension.toLowerCase().replace(/^\./, "");
+
+  if (["png", "jpg", "jpeg", "webp", "gif"].includes(ext)) return "image";
+  if (ext === "pdf") return "pdf";
+  if (["xls", "xlsx"].includes(ext)) return "excel";
+  if (["doc", "docx"].includes(ext)) return "doc";
+
+  return "other";
+}
+

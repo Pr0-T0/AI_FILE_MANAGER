@@ -1,5 +1,5 @@
 // src/electron/main.ts
-import { app, BrowserWindow, ipcMain, dialog } from "electron";
+import { app, BrowserWindow, ipcMain, dialog} from "electron";
 import { join } from "path";
 import { isDev } from "./util.js";
 import { getPreloadPath } from "./pathResolver.js";
@@ -44,8 +44,13 @@ app.whenReady().then(async () => {
     height: 700,
     webPreferences: {
       preload: getPreloadPath(),
+
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
     },
   });
+
 
   if (isDev()) {
     await mainWindow.loadURL("http://localhost:5432");

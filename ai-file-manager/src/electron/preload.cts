@@ -30,3 +30,17 @@ contextBridge.exposeInMainWorld("rescanAPI", {
 contextBridge.exposeInMainWorld("lanAPI", {
   getDevices: () => ipcRenderer.invoke("lan:getDevices"),
 });
+
+contextBridge.exposeInMainWorld("fsAPI", {
+  toFileURL: (absolutePath: string) => {
+    const normalized = absolutePath.replace(/\\/g, "/");
+
+    //linux/mac
+    if (normalized.startsWith("/")) {
+      return `file://${encodeURI(normalized)}`;
+    }
+
+    //windows
+    return `file:///${encodeURI(normalized)}`;
+  }
+});

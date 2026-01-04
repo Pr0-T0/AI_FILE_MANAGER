@@ -107,7 +107,7 @@ const createfolder = tool(
     const result = await createFolder(path);
     if ("error" in result) {
       return {
-        status : "error : Absolute path required. Use sqlgen_exesql to fetch a file path from the target directory",
+        status : "error : Absolute path required. Use query_file_index to fetch a file path from the target directory",
         error : result.error,
       };
     }
@@ -118,7 +118,7 @@ const createfolder = tool(
   }, 
   {
     name : "createfolder",
-    description : "Create a new folder at the given absolute path and update the index file database.- The path must already be resolved.- Do not guess or fabricate paths.- Use sqlgen_exesql to resolve directory paths when needed.",
+    description : "Create a new folder at the given absolute path and update the index file database.- The path must already be resolved.- Do not guess or fabricate paths.- Use query_file_index to resolve directory paths when needed.",
     schema : z.object({
       path : z.string().describe("Absolute path of the folder to create"),
     }),
