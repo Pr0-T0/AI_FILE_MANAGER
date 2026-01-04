@@ -17,31 +17,62 @@ const model = new ChatGoogleGenerativeAI({
 
 
 
+// const query_file_index = tool(
+//   async ({ request }) => {
+//     console.log("sqlgen_exesql called");
+
+//     //generate SQL
+//     console.log("[AI] request : ",request);
+//     const sql = await sqlGen(request);
+//     console.log("[AI] sql : ",sql);
+
+//     // execute SQL
+//     const rows = await executeSQL(sql);
+
+//     const result = normalizeSQLResult(rows);
+
+//     console.log(result);
+//     return {  result };
+//   },
+//   {
+//     name: "query_file_index",
+//     description: "Search the file index using natural language and return factual information about matching files and folders",
+//     schema: z.object({
+//       request : z.string().describe("Natural language description of the files or folders to retrieve"),
+//     }),
+//   }
+// );
 const query_file_index = tool(
-  async ({ request }) => {
-    console.log("sqlgen_exesql called");
+  async ({ query , purpose }) => {
+    console.log("query_file_index called with:", query ,  purpose);
 
-    //generate SQL
-    console.log("[AI] request : ",request);
-    const sql = await sqlGen(request);
-    console.log("[AI] sql : ",sql);
-
-    // execute SQL
-    const rows = await executeSQL(sql);
-
+    const rows = queryFiles(query);
     const result = normalizeSQLResult(rows);
 
-    console.log(result);
-    return {  result };
+    return { result , purpose };
   },
   {
     name: "query_file_index",
-    description: "Search the file index using natural language and return factual information about matching files and folders",
+    description:
+      "Query the indexed file system using a structured query object. " +
+      "Do NOT generate SQL. Do NOT guess paths.",
     schema: z.object({
-      request : z.string().describe("Natural language description of the files or folders to retrieve"),
+      query: z.object({
+        parent: z.string().optional(),
+        type: z.enum(["file", "directory"]).optional(),
+        extension: z.string().optional(),
+        nameLike: z.string().optional(),
+        sortBy: z.enum(["name", "modified_at", "size"]).optional(),
+        sortOrder: z.enum(["asc", "desc"]).optional(),
+        limit: z.number().optional(),
+      }),
+      purpose: z.enum(["display", "resolve"]).describe(
+        "display = user-visible results, resolve = internal path lookup"
+      ),
     }),
   }
 );
+
 
 export const display_result_to_ui = tool(
   async ({ result, message }) => {
@@ -70,35 +101,6 @@ export const display_result_to_ui = tool(
   }
 );
 
-
-// const display_file_results = tool(
-//   ({ data }) => {
-//     console.log("display_file_results called");
-
-//     const displayStatus = displayResult(data);
-
-//     if (displayStatus === true) {
-//       return { status: "shown" };
-//     }
-
-//     return {
-//       status: "error",
-//       error: displayStatus,
-//     };
-//   },
-//   {
-//     name: "display_file_results",
-//     description:
-//       "Display file or folder search results in the user interface. Use only for lists of files or folders.",
-//     schema: z.object({
-//       data: z
-//         .any()
-//         .describe(
-//           "Structured file or folder data returned from the file index"
-//         ),
-//     }),
-//   }
-// );
 
 
 const createfolder = tool(
@@ -261,6 +263,7 @@ import { HumanMessage } from "@langchain/core/messages";
 import { sqlGen } from "./sqlGen.js";
 import { moveorCopyPath } from "../tools/moveorCopyPath.js";
 import { normalizeSQLResult } from "../tools/normalizeSQLResult.js";
+import { queryFiles } from "../db/db.js";
 
 // import { console } from "inspector"; this import ruined two days of development :)
 // const result = await agent.invoke({
@@ -269,7 +272,9 @@ import { normalizeSQLResult } from "../tools/normalizeSQLResult.js";
 
 
 export async function runAgent(userInput: string) {
-  let lastQueryResult: any = null; //for storing paths ig
+  let aggregatedItems: any[] = [];
+  let aggregatedKind: "files" | null = null;
+
 
 
   const result = await agent.invoke({
@@ -282,26 +287,29 @@ export async function runAgent(userInput: string) {
 
   //capture file paths and meta information
   for (const msg of result.messages) {
-    if (
-      msg.getType() === "tool" &&
-      msg.name === "query_file_index"
-    ){
-      lastQueryResult = JSON.parse(msg.text).result;
+    if (msg.getType() === "tool" && msg.name === "query_file_index") {
+      const parsed = JSON.parse(msg.text);
+
+      if (parsed.purpose === "display") {
+        if (parsed.result?.items?.length) {
+          aggregatedItems.push(...parsed.result.items);
+          aggregatedKind = parsed.result.kind;
+        }
+      }
     }
   }
 
 
+
   //For sending Data to Frontend
   for (const msg of result.messages) {
-    if (
-      msg.getType() === "tool" &&
-      msg.name === "display_result_to_ui"
-    ) {
+    if (msg.getType() === "tool" && msg.name === "display_result_to_ui") {
       const parsed = JSON.parse(msg.text);
+
       return {
-        ...(lastQueryResult ?? {}),
-        ...parsed.payload,
-        items:parsed.payload.items ?? lastQueryResult?.items,
+        kind: aggregatedKind ?? parsed.payload.kind,
+        items: aggregatedItems,
+        message: parsed.payload.message,
       };
     }
   }
