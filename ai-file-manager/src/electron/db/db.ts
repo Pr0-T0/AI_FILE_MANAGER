@@ -6,6 +6,23 @@ import { fileURLToPath } from "url";
 import { app } from "electron";
 import { isDev } from "../util.js";
 
+
+// ---------------- Query Types ---------------- pls dont break
+export interface FileQuery {
+  parent?: string;
+  type?: "file" | "directory";
+  extension?: string;
+  nameLike?: string;
+  modifiedAfter?: number;
+  modifiedBefore?: number;
+  sizeGreaterThan?: number;
+  sizeLessThan?: number;
+  sortBy?: "name" | "modified_at" | "size";
+  sortOrder?: "asc" | "desc";
+  limit?: number;
+}
+
+
 // ---------------- Types ----------------
 export interface FileMeta {
   path: string;
@@ -166,6 +183,80 @@ export function searchByName(term: string, limit = 100) {
   const { searchByNameStmt } = getStatements(database);
   return searchByNameStmt.all(`%${term}%`, limit);
 }
+
+// ---------------- Generic Query ----------------
+export function queryFiles(query: FileQuery) {
+  const database = ensureDB();
+
+  const conditions: string[] = [];
+  const params: any[] = [];
+
+  if (query.parent) {
+    conditions.push("parent = ?");
+    params.push(path.normalize(query.parent));
+  }
+
+  if (query.type) {
+    conditions.push("type = ?");
+    params.push(query.type);
+  }
+
+  if (query.extension) {
+  const ext = query.extension.startsWith(".")
+    ? query.extension
+    : `.${query.extension}`;
+
+  conditions.push("extension = ?");
+  params.push(ext.toLowerCase());
+  }
+
+
+  if (query.nameLike) {
+    conditions.push("LOWER(name) LIKE LOWER(?)");
+    params.push(`%${query.nameLike}%`);
+  }
+
+  if (query.modifiedAfter !== undefined) {
+    conditions.push("modified_at >= ?");
+    params.push(query.modifiedAfter);
+  }
+
+  if (query.modifiedBefore !== undefined) {
+    conditions.push("modified_at <= ?");
+    params.push(query.modifiedBefore);
+  }
+
+  if (query.sizeGreaterThan !== undefined) {
+    conditions.push("size >= ?");
+    params.push(query.sizeGreaterThan);
+  }
+
+  if (query.sizeLessThan !== undefined) {
+    conditions.push("size <= ?");
+    params.push(query.sizeLessThan);
+  }
+
+  let sql = "SELECT * FROM files_index";
+
+  if (conditions.length > 0) {
+    sql += " WHERE " + conditions.join(" AND ");
+  }
+
+  const sortBy = query.sortBy ?? "name";
+  const sortOrder =
+    query.sortOrder && query.sortOrder.toUpperCase() === "DESC"
+      ? "DESC"
+      : "ASC";
+
+  sql += ` ORDER BY ${sortBy} ${sortOrder}`;
+
+  const limit = Math.min(query.limit ?? 100, 500);
+  sql += " LIMIT ?";
+  params.push(limit);
+
+  return database.prepare(sql).all(...params);
+}
+
 
 export const upsertMany = (rows: FileMeta[]) => {
   const database = ensureDB();
