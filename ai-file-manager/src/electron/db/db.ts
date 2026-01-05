@@ -9,7 +9,7 @@ import { isDev } from "../util.js";
 
 // ---------------- Query Types ---------------- pls dont break
 export interface FileQuery {
-  parent?: string;
+  parentName?: string;
   type?: "file" | "directory";
   extension?: string;
   nameLike?: string;
@@ -191,9 +191,9 @@ export function queryFiles(query: FileQuery) {
   const conditions: string[] = [];
   const params: any[] = [];
 
-  if (query.parent) {
+  if (query.parentName) {
     conditions.push("parent = ?");
-    params.push(path.normalize(query.parent));
+    params.push(path.normalize(query.parentName));
   }
 
   if (query.type) {

@@ -45,7 +45,7 @@ export default function TerminalLogger() {
           ref={containerRef}
           onMouseEnter={() => (isPaused.current = true)}
           onMouseLeave={() => (isPaused.current = false)}
-          className="h-full overflow-auto px-4 py-4 space-y-0.5"
+          className="h-full overflow-auto px-4 py-4 space-y-0.5 no-scrollbar"
         >
           {logs.map((log, i) => (
             <LogLine key={i} log={log} />

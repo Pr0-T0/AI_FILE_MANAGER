@@ -33,7 +33,7 @@ const query_file_index = tool(
       "Do NOT generate SQL. Do NOT guess paths.",
     schema: z.object({
       query: z.object({
-        parent: z.string().optional(),
+        parentName: z.string().optional(),
         type: z.enum(["file", "directory"]).optional(),
         extension: z.string().optional(),
         nameLike: z.string().optional(),
