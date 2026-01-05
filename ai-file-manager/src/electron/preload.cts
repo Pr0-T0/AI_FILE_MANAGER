@@ -44,3 +44,14 @@ contextBridge.exposeInMainWorld("fsAPI", {
     return `file:///${encodeURI(normalized)}`;
   }
 });
+
+//logger IPC
+
+contextBridge.exposeInMainWorld("logger", {
+  onLog: (callback: (log: any) => void) => {
+    ipcRenderer.on("log:event", (_, log) => callback(log));
+  },
+  offLog: (callback: any) => {
+    ipcRenderer.removeListener("log:event", callback);
+  },
+});

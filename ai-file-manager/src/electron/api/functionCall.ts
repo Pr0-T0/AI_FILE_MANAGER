@@ -19,6 +19,7 @@ const model = new ChatGoogleGenerativeAI({
 const query_file_index = tool(
   async ({ query , purpose }) => {
     console.log("query_file_index called with:", query ,  purpose);
+    log("info","Searching Files..");
 
     const rows = queryFiles(query);
     const result = normalizeSQLResult(rows);
@@ -52,6 +53,7 @@ export const display_result_to_ui = tool(
   async ({ result, message }) => {
     // No side effects here.
     // Just declare the final UI payload.
+    log("info","Trying To display Result");
     return {
       payload: {
         ...result,   // { kind, items | metric/value }
@@ -80,6 +82,7 @@ export const display_result_to_ui = tool(
 const createfolder = tool(
   async ( { path } ) => {
     console.log("createFolder called");
+    log("info","Creating Folder");
     const result = await createFolder(path);
     if ("error" in result) {
       return {
@@ -103,6 +106,7 @@ const createfolder = tool(
 const moveorcopypath = tool(
   async ({ sourcePath, destinationPath, operation }) => {
     console.log("moveOrCopyPath called");
+    log("info","Moving Files...");
 
     const result = await moveorCopyPath(
       sourcePath,
@@ -238,6 +242,7 @@ import { sqlGen } from "./sqlGen.js";
 import { moveorCopyPath } from "../tools/moveorCopyPath.js";
 import { normalizeSQLResult } from "../tools/normalizeSQLResult.js";
 import { queryFiles } from "../db/db.js";
+import { log } from "../logger.js";
 
 // import { console } from "inspector"; this import ruined two days of development :)
 // const result = await agent.invoke({

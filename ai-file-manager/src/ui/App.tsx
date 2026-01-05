@@ -3,21 +3,19 @@ import Sidebar from "./componants/sideBar";
 import MainContent from "./componants/mainContent";
 import FloatingTextBar from "./componants/floatingTextBar";
 import FilesScreen from "./screens/fileScreen";
+import TerminalLogger from "./componants/terminalLogger";
 
 function App() {
   const [currentView, setCurrentView] = useState<
     "overview" | "files" | "peers" | "settings"
   >("overview");
 
-  // STORE AI RESULT
   const [aiResult, setAIResult] = useState<any>(null);
 
-  // THIS is the correct handler
   const handleAIOutput = (response: any) => {
     console.log("[AI RESULT]", response);
     setAIResult(response);
 
-    // Optional: auto-switch to files view
     if (response?.kind === "files") {
       setCurrentView("files");
     }
@@ -25,17 +23,27 @@ function App() {
 
   return (
     <div className="h-screen w-screen flex bg-zinc-950 text-gray-200 overflow-hidden">
+      {/* LEFT SIDEBAR */}
       <Sidebar setCurrentView={setCurrentView} />
 
-      {/* MAIN AREA */}
-      <div className="flex-1 relative">
-        {currentView === "files" ? (
-          <FilesScreen aiResult={aiResult} />
-        ) : (
-          <MainContent currentView={currentView} />
-        )}
+      {/* CENTER + RIGHT */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* MAIN CONTENT (CENTER) */}
+        <div className="flex-1 relative overflow-hidden">
+          {currentView === "files" ? (
+            <FilesScreen aiResult={aiResult} />
+          ) : (
+            <MainContent currentView={currentView} />
+          )}
+        </div>
+
+        {/* RIGHT TERMINAL LOGGER */}
+        <div className="w-95 border-l border-zinc-800 flex flex-col">
+          <TerminalLogger />
+        </div>
       </div>
 
+      {/* FLOATING INPUT */}
       <FloatingTextBar onAICommand={handleAIOutput} />
     </div>
   );

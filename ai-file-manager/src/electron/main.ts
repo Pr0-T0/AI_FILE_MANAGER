@@ -8,6 +8,7 @@ import { scanDirectory } from "./db/scanner.js";
 import { runAgent } from "./api/functionCall.js";
 import { getLanDevices, startLanPresence } from "./webrtc/presence.js";
 import { loadSettings, saveSettings } from "./settings.js";
+import { log } from "./logger.js";
 
 // Disable GPU
 app.disableHardwareAcceleration();
@@ -59,6 +60,7 @@ app.whenReady().then(async () => {
   }
 
   console.log("[App] Main window loaded!");
+  log("info","App started");
 
   // ---------------- IPC: AI ----------------
   ipcMain.handle("ai:chat-sql", async (_event, userQuery: string) => {
@@ -89,6 +91,7 @@ app.whenReady().then(async () => {
   //rescan IPC 
   ipcMain.handle("scan:rescan", async () => {
   console.log("Manual Rescan");
+  log("info","Reindexing..")
 
   const settings = loadSettings();
   const roots = settings.scan.roots;
