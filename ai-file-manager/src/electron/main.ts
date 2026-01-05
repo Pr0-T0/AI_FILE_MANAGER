@@ -1,5 +1,5 @@
 // src/electron/main.ts
-import { app, BrowserWindow, ipcMain, dialog} from "electron";
+import { app, BrowserWindow, ipcMain, dialog, Menu} from "electron";
 import { join } from "path";
 import { isDev } from "./util.js";
 import { getPreloadPath } from "./pathResolver.js";
@@ -13,6 +13,7 @@ import { log } from "./logger.js";
 // Disable GPU
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch("force-device-scale-factor", "1");
+Menu.setApplicationMenu(null);
 
 app.whenReady().then(async () => {
   // ---------------- Settings ----------------

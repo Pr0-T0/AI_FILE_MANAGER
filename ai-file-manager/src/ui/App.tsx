@@ -38,7 +38,7 @@ function App() {
         </div>
 
         {/* RIGHT TERMINAL LOGGER */}
-        <div className="w-95 border-l border-zinc-800 flex flex-col">
+        <div className="w-70 border-l border-zinc-800 flex flex-col">
           <TerminalLogger />
         </div>
       </div>
