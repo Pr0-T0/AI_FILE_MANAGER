@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { File, FileText, Folder } from "lucide-react";
 
-/* =======================
-   Types
-   ======================= */
+
+//   Types
 
 interface FileItem {
   id: string;
@@ -29,9 +28,7 @@ interface AIResult {
   message?: string;
 }
 
-/* =======================
-   Component
-   ======================= */
+//   Component
 
 export default function FilesScreen({
   aiResult,
@@ -42,9 +39,8 @@ export default function FilesScreen({
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   const [message, setMessage] = useState("");
 
-  /* -----------------------
-     Helpers
-     ----------------------- */
+ 
+ //    Helpers
 
   const getFileIcon = (fileType: FileItem["file_type"]) => {
     if (fileType === "folder")
@@ -82,9 +78,7 @@ export default function FilesScreen({
     };
   };
 
-  /* -----------------------
-     React to AI result
-     ----------------------- */
+ //    React to AI result
 
   useEffect(() => {
     if (!aiResult) return;
@@ -99,9 +93,8 @@ export default function FilesScreen({
     }
   }, [aiResult]);
 
-  /* -----------------------
-     UI
-     ----------------------- */
+
+  //   UI
 
   return (
     <div className="flex h-full w-full bg-zinc-950 text-gray-200">

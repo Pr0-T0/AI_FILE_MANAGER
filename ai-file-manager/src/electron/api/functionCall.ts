@@ -11,37 +11,11 @@ import { createFolder } from "../tools/createFolder.js";
 const model = new ChatGoogleGenerativeAI({
   model : "gemini-2.5-flash",
   temperature: 0,
-  apiKey: process.env.GEMINI_API_KEY_1,
+  apiKey: process.env.GEMINI_API_KEY,
 });
 
 
 
-
-// const query_file_index = tool(
-//   async ({ request }) => {
-//     console.log("sqlgen_exesql called");
-
-//     //generate SQL
-//     console.log("[AI] request : ",request);
-//     const sql = await sqlGen(request);
-//     console.log("[AI] sql : ",sql);
-
-//     // execute SQL
-//     const rows = await executeSQL(sql);
-
-//     const result = normalizeSQLResult(rows);
-
-//     console.log(result);
-//     return {  result };
-//   },
-//   {
-//     name: "query_file_index",
-//     description: "Search the file index using natural language and return factual information about matching files and folders",
-//     schema: z.object({
-//       request : z.string().describe("Natural language description of the files or folders to retrieve"),
-//     }),
-//   }
-// );
 const query_file_index = tool(
   async ({ query , purpose }) => {
     console.log("query_file_index called with:", query ,  purpose);
@@ -139,7 +113,7 @@ const moveorcopypath = tool(
     if ("error" in result) {
       return {
         status:
-          "error : Absolute paths required. Do not guess paths. Use sqlgen_exesql to resolve file or directory paths before calling this tool.",
+          "error : Absolute paths required. Do not guess paths. Use query_file_index to resolve file or directory paths before calling this tool.",
         error: result.error,
       };
     }
@@ -203,7 +177,7 @@ async function llmCall(state:z.infer<typeof MessagesState>) {
   return {
     messages:  await modelWithTools.invoke([
       new SystemMessage(
-        "You are a helpfull file manager assistant named LINC tasked with performing file operations.all file metadata information is stored in a sql db which is nt visible or known to the user.always try to display the final result to the user not only the text responce"
+        "You are a helpfull file manager assistant named LINC tasked with performing file operations.all file metadata information is stored in a sql db which is not visible or known to the user.always try to display the final result to the user not only the text responce"
 
       ),
       ...state.messages,
