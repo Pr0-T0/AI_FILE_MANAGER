@@ -13,7 +13,7 @@ import { log } from "./logger.js";
 // Disable GPU
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch("force-device-scale-factor", "1");
-Menu.setApplicationMenu(null);
+// Menu.setApplicationMenu(null);
 
 app.whenReady().then(async () => {
   // ---------------- Settings ----------------

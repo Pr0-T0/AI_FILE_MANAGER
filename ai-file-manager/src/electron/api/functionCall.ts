@@ -8,10 +8,21 @@ import "dotenv/config";
 import { createFolder } from "../tools/createFolder.js";
 
 
-const model = new ChatGoogleGenerativeAI({
-  model : "gemini-2.5-flash",
+// const model = new ChatGoogleGenerativeAI({
+//   model : "gemini-2.5-flash",
+//   temperature: 0,
+//   apiKey: process.env.GEMINI_API_KEY,
+// });
+
+import { ChatOpenAI } from "@langchain/openai";
+
+const model = new ChatOpenAI({
+  model: "llama-3.3-70b-versatile", // or other Groq models
   temperature: 0,
-  apiKey: process.env.GEMINI_API_KEY,
+  apiKey: process.env.GROQ_API_KEY,
+  configuration: {
+    baseURL: "https://api.groq.com/openai/v1",
+  },
 });
 
 
