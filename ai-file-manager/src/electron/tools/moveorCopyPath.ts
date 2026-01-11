@@ -1,6 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { deleteByPathPrefix, upsertMany } from "../db/db.js";
+import { resolveRootPath } from "../db/resolveRoot.js";
 
 type OperationType = "copy" | "cut";
 
@@ -74,10 +75,16 @@ async function collectSubtree(
 export async function moveorCopyPath(
   sourcePath: string,
   destinationPath: string,
-  operation: OperationType,
-  rootPath: string
+  operation: OperationType
 ): Promise<TransferResult> {
   try {
+    /* ---------- Guard: absolute paths only ---------- */
+    if (!path.isAbsolute(sourcePath) || !path.isAbsolute(destinationPath)) {
+      throw new Error(
+        "Absolute paths required. Resolve paths via file index before calling this tool."
+      );
+    }
+
     const src = path.resolve(sourcePath);
     const destBase = path.resolve(destinationPath);
     const seenAt = Date.now();
@@ -85,7 +92,7 @@ export async function moveorCopyPath(
     const srcStat = await fs.stat(src);
     const isDir = srcStat.isDirectory();
 
-    // Resolve final destination
+    /* ---------- Resolve final destination ---------- */
     let dest = destBase;
     try {
       if ((await fs.stat(destBase)).isDirectory()) {
@@ -94,6 +101,9 @@ export async function moveorCopyPath(
     } catch {
       // destination does not exist → treat as full path
     }
+
+    /* ---------- Resolve root from FINAL destination ---------- */
+    const destRoot = resolveRootPath(dest);
 
     await fs.mkdir(path.dirname(dest), { recursive: true });
 
@@ -122,6 +132,9 @@ export async function moveorCopyPath(
     const metas: FileMeta[] = [];
 
     if (isDir) {
+      const traversalBase =
+        operation === "copy" ? src : dest;
+
       metas.push({
         path: dest,
         name: path.basename(dest),
@@ -129,16 +142,16 @@ export async function moveorCopyPath(
         type: "directory",
         created_at: srcStat.birthtimeMs ?? null,
         modified_at: srcStat.mtimeMs ?? null,
-        root_path: path.normalize(rootPath),
+        root_path: path.normalize(destRoot),
         last_seen_at: seenAt,
       });
 
       metas.push(
         ...(await collectSubtree(
-          src,
-          src,
+          traversalBase,
+          traversalBase,
           dest,
-          rootPath,
+          destRoot,
           seenAt
         ))
       );
@@ -152,14 +165,14 @@ export async function moveorCopyPath(
         size: newStat.size,
         created_at: newStat.birthtimeMs ?? null,
         modified_at: newStat.mtimeMs ?? null,
-        root_path: path.normalize(rootPath),
+        root_path: path.normalize(destRoot),
         last_seen_at: seenAt,
       });
     }
 
     await upsertMany(metas);
 
-    // Remove old DB entries only for CUT
+    /* ---------- Cleanup old entries on CUT ---------- */
     if (operation === "cut") {
       await deleteByPathPrefix(src);
     }

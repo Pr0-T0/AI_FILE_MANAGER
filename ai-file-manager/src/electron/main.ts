@@ -17,32 +17,22 @@ app.commandLine.appendSwitch("force-device-scale-factor", "1");
 // Menu.setApplicationMenu(null);
 
 app.whenReady().then(async () => {
-  // ---------------- Settings ----------------
+  // Settings 
   const settings = loadSettings(); // <-- creates settings.json
   console.log("[Settings] Loaded:", settings);
 
-  // ---------------- Database ----------------
+  //Database 
   initDB();
   console.log("[DB] Ready and connected.");
 
-  // ---------------- File Indexing ----------------
-  // const roots = settings.scan.roots;
-  // console.log("[Scan] Starting file indexing:", roots);
-
-  // for (const root of roots) {
-  //   try {
-  //     console.log(`[Scan] Scanning root: ${root}`);
-  //     await manualScan(root);
-  //   } catch (err) {
-  //     console.error(`[Scan] Error scanning root ${root}:`, err);
-  //   }
-  // }
+  //File Indexing 
+  
   await reconcileRoots();
 
-  // ---------------- LAN Presence ----------------
+  //LAN Presence
   startLanPresence();
 
-  // ---------------- Window ----------------
+  //Window 
   const mainWindow = new BrowserWindow({
     width: 1000,
     height: 700,
@@ -97,27 +87,6 @@ app.whenReady().then(async () => {
   log("info","Reindexing Roots")
 
   await reconcileRoots();
-  // const { scan } = getSettings();
-
-  // const SettingsRoots = scan.roots.map(r => path.normalize(r));
-  // const indexedRoots = getIndexedRoots();
-
-  // //removed Roots Deletion
-  // for (const dbRoot of indexedRoots) {
-  //   if (!SettingsRoots.includes(dbRoot)) {
-  //     log("info","index updated");
-  //     deleteRoot(dbRoot);
-  //   }
-  // }
-
-
-  // for (const root of SettingsRoots) {
-  //   try {
-  //     await manualScan(root);
-  //   } catch (err) {
-  //     console.error("Error scanning Root : ",root, err)
-  //   }
-  // }
     log("info","Reindexing Successfull")
   });
 
@@ -130,7 +99,7 @@ app.whenReady().then(async () => {
 });
 
 
-// ---------------- Graceful Shutdown ----------------
+// Graceful Shutdown
 app.on("before-quit", () => {
   try {
     const { closeDB } = require("./db/db.js");
