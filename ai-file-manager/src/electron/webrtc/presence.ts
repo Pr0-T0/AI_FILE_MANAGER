@@ -1,6 +1,7 @@
 import dgram from "dgram";
 import os from "os";
 import crypto from "crypto";
+import { log } from "../logger.js";
 
 const PORT = 41234;
 const BROADCAST_ADDR = "255.255.255.255";
@@ -30,6 +31,7 @@ function getUptimeSeconds() {
 // send heartbeat
 function broadcastPresence() {
   const message = JSON.stringify({
+    type:"presence",
     deviceId: DEVICE_ID,
     uptime: getUptimeSeconds(),
     timestamp: Date.now(),
@@ -49,14 +51,24 @@ socket.on("message", (msg, rinfo) => {
   try {
     const data = JSON.parse(msg.toString());
 
-    if (data.deviceId === DEVICE_ID) return;
+    //handle presence
+    if (data.type === "presence") {
+      if (data.deviceId === DEVICE_ID) return;
+    
+        devices.set(data.deviceId, {
+          deviceId: data.deviceId,
+          address: rinfo.address,
+          uptime: data.uptime,
+          lastSeen: Date.now(),
+      });
+    }
 
-    devices.set(data.deviceId, {
-      deviceId: data.deviceId,
-      address: rinfo.address,
-      uptime: data.uptime,
-      lastSeen: Date.now(),
-    });
+    //signaling
+    if (data.type === "signal") {
+      if (data.to != DEVICE_ID) return;
+      handleSignal(data.from, data.payload); 
+    }
+
   } catch {
     // ignore malformed packets
   }
@@ -115,8 +127,37 @@ export function startLanPresence() {
     });
 }
 
+//unicast signaling sender
+export function sendLanSignal(
+  targetDeviceId: string,
+  payload: any
+) {
+  const target = devices.get(targetDeviceId);
+  if (!target) {
+    console.warn("Target device not found:", targetDeviceId);
+    return;
+  }
+
+  const message = JSON.stringify({
+    type: "signal",
+    from: DEVICE_ID,
+    to: targetDeviceId,
+    payload,
+  });
+
+  socket.send(message, PORT, target.address);
+}
+
+//signal handler temp
+function handleSignal(from: string, payload: any) {
+  log("debug",`${from}:${JSON.stringify(payload)}`);
+}
+
+
+
 
 //function for IPC
 export function getLanDevices() {
   return Array.from(devices.values());
 }
+
