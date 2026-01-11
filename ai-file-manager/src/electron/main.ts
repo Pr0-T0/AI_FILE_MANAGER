@@ -1,14 +1,15 @@
 // src/electron/main.ts
 import { app, BrowserWindow, ipcMain, dialog, Menu} from "electron";
-import { join } from "path";
+import path, { join } from "path";
 import { isDev } from "./util.js";
 import { getPreloadPath } from "./pathResolver.js";
-import { initDB, resetDB } from "./db/db.js";
+import { deleteRoot, getIndexedRoots, initDB, resetDB } from "./db/db.js";
 import { runAgent } from "./api/functionCall.js";
 import { getLanDevices, startLanPresence } from "./webrtc/presence.js";
 import { loadSettings, saveSettings, getSettings } from "./settings.js";
 import { log } from "./logger.js";
 import { manualScan } from "./db/scanner.js";
+import { reconcileRoots } from "./db/reconcileRoots.js";
 
 // Disable GPU
 app.disableHardwareAcceleration();
@@ -25,17 +26,18 @@ app.whenReady().then(async () => {
   console.log("[DB] Ready and connected.");
 
   // ---------------- File Indexing ----------------
-  const roots = settings.scan.roots;
-  console.log("[Scan] Starting file indexing:", roots);
+  // const roots = settings.scan.roots;
+  // console.log("[Scan] Starting file indexing:", roots);
 
-  for (const root of roots) {
-    try {
-      console.log(`[Scan] Scanning root: ${root}`);
-      await manualScan(root);
-    } catch (err) {
-      console.error(`[Scan] Error scanning root ${root}:`, err);
-    }
-  }
+  // for (const root of roots) {
+  //   try {
+  //     console.log(`[Scan] Scanning root: ${root}`);
+  //     await manualScan(root);
+  //   } catch (err) {
+  //     console.error(`[Scan] Error scanning root ${root}:`, err);
+  //   }
+  // }
+  await reconcileRoots();
 
   // ---------------- LAN Presence ----------------
   startLanPresence();
@@ -94,18 +96,28 @@ app.whenReady().then(async () => {
   console.log("Manual Rescan");
   log("info","Reindexing Roots")
 
-  // const settings = loadSettings();
-  // const roots = settings.scan.roots;
-  const { scan } = getSettings();
+  await reconcileRoots();
+  // const { scan } = getSettings();
+
+  // const SettingsRoots = scan.roots.map(r => path.normalize(r));
+  // const indexedRoots = getIndexedRoots();
+
+  // //removed Roots Deletion
+  // for (const dbRoot of indexedRoots) {
+  //   if (!SettingsRoots.includes(dbRoot)) {
+  //     log("info","index updated");
+  //     deleteRoot(dbRoot);
+  //   }
+  // }
 
 
-  for (const root of scan.roots) {
-    try {
-      await manualScan(root);
-    } catch (err) {
-      console.error("Error scanning Root : ",root, err)
-    }
-  }
+  // for (const root of SettingsRoots) {
+  //   try {
+  //     await manualScan(root);
+  //   } catch (err) {
+  //     console.error("Error scanning Root : ",root, err)
+  //   }
+  // }
     log("info","Reindexing Successfull")
   });
 
@@ -128,3 +140,4 @@ app.on("before-quit", () => {
     console.warn("[DB] Failed to close cleanly");
   }
 });
+

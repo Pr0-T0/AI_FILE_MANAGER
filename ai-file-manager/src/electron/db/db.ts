@@ -384,3 +384,20 @@ export function deleteUnseenInRoot(rootPath: string) {
       AND last_seen_at IS NULL
   `).run(path.normalize(rootPath));
 }
+
+export function getIndexedRoots(): string[] {
+  const database = ensureDB();
+  return database
+  .prepare(
+    `SELECT DISTINCT root_path FROM files_index`
+  )
+  .all()
+  .map((r:any) => path.normalize(r.root_path));
+}
+
+export function deleteRoot(rootPath: string) {
+  const database = ensureDB();
+  return database.prepare(
+    `DELETE FROM files_index WHERE root_path = ?`
+  ).run(path.normalize(rootPath));
+}
