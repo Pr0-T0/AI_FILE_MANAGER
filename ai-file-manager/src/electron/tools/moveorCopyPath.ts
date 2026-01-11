@@ -12,6 +12,8 @@ interface FileMeta {
   size?: number;
   created_at?: number | null;
   modified_at?: number | null;
+  root_path: string;
+  last_seen_at: number;
 }
 
 type TransferResult =
@@ -24,7 +26,9 @@ type TransferResult =
 async function collectSubtree(
   srcDir: string,
   srcRoot: string,
-  destRoot: string
+  destRoot: string,
+  rootPath: string,
+  seenAt: number
 ): Promise<FileMeta[]> {
   const entries = await fs.readdir(srcDir, { withFileTypes: true });
   const metas: FileMeta[] = [];
@@ -39,15 +43,25 @@ async function collectSubtree(
     metas.push({
       path: destPath,
       name: entry.name,
-      parent: path.dirname(destPath),
+      parent: path.basename(path.dirname(destPath)),
       type: entry.isDirectory() ? "directory" : "file",
       size: entry.isDirectory() ? undefined : stat.size,
       created_at: stat.birthtimeMs ?? null,
       modified_at: stat.mtimeMs ?? null,
+      root_path: path.normalize(rootPath),
+      last_seen_at: seenAt,
     });
 
     if (entry.isDirectory()) {
-      metas.push(...(await collectSubtree(srcPath, srcRoot, destRoot)));
+      metas.push(
+        ...(await collectSubtree(
+          srcPath,
+          srcRoot,
+          destRoot,
+          rootPath,
+          seenAt
+        ))
+      );
     }
   }
 
@@ -60,23 +74,25 @@ async function collectSubtree(
 export async function moveorCopyPath(
   sourcePath: string,
   destinationPath: string,
-  operation: OperationType
+  operation: OperationType,
+  rootPath: string
 ): Promise<TransferResult> {
   try {
     const src = path.resolve(sourcePath);
     const destBase = path.resolve(destinationPath);
+    const seenAt = Date.now();
 
     const srcStat = await fs.stat(src);
     const isDir = srcStat.isDirectory();
 
-    // resolve final destination
+    // Resolve final destination
     let dest = destBase;
     try {
       if ((await fs.stat(destBase)).isDirectory()) {
         dest = path.join(destBase, path.basename(src));
       }
     } catch {
-      // dest does not exist → treat as full path
+      // destination does not exist → treat as full path
     }
 
     await fs.mkdir(path.dirname(dest), { recursive: true });
@@ -92,7 +108,6 @@ export async function moveorCopyPath(
       try {
         await fs.rename(src, dest);
       } catch (err: any) {
-        // cross-device fallback
         if (err.code === "EXDEV") {
           if (isDir) await fs.cp(src, dest, { recursive: true });
           else await fs.copyFile(src, dest);
@@ -104,29 +119,41 @@ export async function moveorCopyPath(
     }
 
     /* ---------- DB Operation ---------- */
-    let metas: FileMeta[] = [];
+    const metas: FileMeta[] = [];
 
     if (isDir) {
       metas.push({
         path: dest,
         name: path.basename(dest),
-        parent: path.dirname(dest),
+        parent: path.basename(path.dirname(dest)),
         type: "directory",
         created_at: srcStat.birthtimeMs ?? null,
         modified_at: srcStat.mtimeMs ?? null,
+        root_path: path.normalize(rootPath),
+        last_seen_at: seenAt,
       });
 
-      metas.push(...(await collectSubtree(src, src, dest)));
+      metas.push(
+        ...(await collectSubtree(
+          src,
+          src,
+          dest,
+          rootPath,
+          seenAt
+        ))
+      );
     } else {
       const newStat = await fs.stat(dest);
       metas.push({
         path: dest,
         name: path.basename(dest),
-        parent: path.dirname(dest),
+        parent: path.basename(path.dirname(dest)),
         type: "file",
         size: newStat.size,
         created_at: newStat.birthtimeMs ?? null,
         modified_at: newStat.mtimeMs ?? null,
+        root_path: path.normalize(rootPath),
+        last_seen_at: seenAt,
       });
     }
 

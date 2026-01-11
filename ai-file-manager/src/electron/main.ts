@@ -4,11 +4,11 @@ import { join } from "path";
 import { isDev } from "./util.js";
 import { getPreloadPath } from "./pathResolver.js";
 import { initDB, resetDB } from "./db/db.js";
-import { scanDirectory } from "./db/scanner.js";
 import { runAgent } from "./api/functionCall.js";
 import { getLanDevices, startLanPresence } from "./webrtc/presence.js";
-import { loadSettings, saveSettings } from "./settings.js";
+import { loadSettings, saveSettings, getSettings } from "./settings.js";
 import { log } from "./logger.js";
+import { manualScan } from "./db/scanner.js";
 
 // Disable GPU
 app.disableHardwareAcceleration();
@@ -31,7 +31,7 @@ app.whenReady().then(async () => {
   for (const root of roots) {
     try {
       console.log(`[Scan] Scanning root: ${root}`);
-      await scanDirectory(root);
+      await manualScan(root);
     } catch (err) {
       console.error(`[Scan] Error scanning root ${root}:`, err);
     }
@@ -75,7 +75,7 @@ app.whenReady().then(async () => {
 
   // ---------------- IPC: Settings ----------------
   ipcMain.handle("settings:get", () => {
-    return JSON.parse(JSON.stringify(loadSettings()));
+    return JSON.parse(JSON.stringify(getSettings()));
   });
 
   ipcMain.handle("settings:set", (_event, settings) => {
@@ -92,20 +92,21 @@ app.whenReady().then(async () => {
   //rescan IPC 
   ipcMain.handle("scan:rescan", async () => {
   console.log("Manual Rescan");
-  log("info","Reindexing..")
+  log("info","Reindexing Roots")
 
-  const settings = loadSettings();
-  const roots = settings.scan.roots;
+  // const settings = loadSettings();
+  // const roots = settings.scan.roots;
+  const { scan } = getSettings();
 
-  resetDB();
 
-  for (const root of roots) {
+  for (const root of scan.roots) {
     try {
-      await scanDirectory(root);
+      await manualScan(root);
     } catch (err) {
       console.error("Error scanning Root : ",root, err)
     }
   }
+    log("info","Reindexing Successfull")
   });
 
   //UDP presence IPC
