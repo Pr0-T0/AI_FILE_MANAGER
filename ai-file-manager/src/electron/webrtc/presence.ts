@@ -16,7 +16,7 @@ export const DEVICE_ID = crypto.randomUUID();
 const START_TIME = Date.now();
 
 // ──────────────────────────────
-// Host state (can be toggled)
+// Host state (mutable, safe)
 // ──────────────────────────────
 let IS_HOST = false;
 const SIGNAL_PORT = 9000;
@@ -25,7 +25,7 @@ const SIGNAL_PATH = "/peerjs";
 // ──────────────────────────────
 // Types
 // ──────────────────────────────
-type DeviceInfo = {
+export type DeviceInfo = {
   deviceId: string;
   address: string;
   role: "host" | "client";
@@ -58,7 +58,7 @@ function broadcastPresence() {
       ? { port: SIGNAL_PORT, path: SIGNAL_PATH }
       : null,
   });
-  log("debug",message)
+
   socket.send(message, PORT, BROADCAST_ADDR);
 }
 
@@ -68,10 +68,8 @@ function broadcastPresence() {
 socket.on("message", (msg, rinfo) => {
   try {
     const data = JSON.parse(msg.toString());
-
     if (data.deviceId === DEVICE_ID) return;
 
-    // ───── Presence ─────
     if (data.type === "presence") {
       devices.set(data.deviceId, {
         deviceId: data.deviceId,
@@ -84,13 +82,11 @@ socket.on("message", (msg, rinfo) => {
       });
     }
 
-    // ───── Unicast signaling (optional) ─────
     if (data.type === "signal" && data.to === DEVICE_ID) {
       handleSignal(data.from, data.payload);
     }
-
   } catch {
-    // ignore malformed packets
+    /* ignore malformed packets */
   }
 });
 
@@ -99,7 +95,6 @@ socket.on("message", (msg, rinfo) => {
 // ──────────────────────────────
 function cleanupDevices() {
   const now = Date.now();
-
   for (const [id, info] of devices.entries()) {
     if (now - info.lastSeen > OFFLINE_TIMEOUT) {
       devices.delete(id);
@@ -110,14 +105,22 @@ function cleanupDevices() {
 // ──────────────────────────────
 // Public API
 // ──────────────────────────────
-export function startLanPresence(isHost = false) {
-  IS_HOST = isHost;
+
+// 🚀 START ONCE
+export function startLanPresence() {
   socket.bind(PORT, () => {
     socket.setBroadcast(true);
-
     setInterval(broadcastPresence, HEARTBEAT_INTERVAL);
     setInterval(cleanupDevices, HEARTBEAT_INTERVAL);
   });
+}
+
+//  SAFE ROLE CHANGE
+export function setHostRole(isHost: boolean) {
+  if (IS_HOST !== isHost) {
+    IS_HOST = isHost;
+    log("info", `Presence role changed → ${IS_HOST ? "HOST" : "CLIENT"}`);
+  }
 }
 
 export function getLanDevices(): DeviceInfo[] {
@@ -125,7 +128,7 @@ export function getLanDevices(): DeviceInfo[] {
 }
 
 // ──────────────────────────────
-// Optional: Unicast signaling helper
+// Optional: Unicast signaling
 // ──────────────────────────────
 export function sendLanSignal(
   targetDeviceId: string,

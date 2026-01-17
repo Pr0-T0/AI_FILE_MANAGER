@@ -10,6 +10,7 @@ import { loadSettings, saveSettings, getSettings } from "./settings.js";
 import { log } from "./logger.js";
 import { manualScan } from "./db/scanner.js";
 import { reconcileRoots } from "./db/reconcileRoots.js";
+import { startHostElection } from "./webrtc/hostElection.js";
 
 // Disable GPU
 app.disableHardwareAcceleration();
@@ -29,8 +30,14 @@ app.whenReady().then(async () => {
   
   await reconcileRoots();
 
-  //LAN Presence
-  startLanPresence(false);
+  // LAN Presence — START ONCE
+  startLanPresence();
+
+  // Host election — depends on presence
+  startHostElection(() => {
+    return Math.floor(process.uptime());
+  });
+
 
   //Window 
   const mainWindow = new BrowserWindow({
