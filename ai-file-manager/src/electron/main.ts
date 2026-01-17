@@ -30,7 +30,7 @@ app.whenReady().then(async () => {
   await reconcileRoots();
 
   //LAN Presence
-  startLanPresence();
+  startLanPresence(false);
 
   //Window 
   const mainWindow = new BrowserWindow({
